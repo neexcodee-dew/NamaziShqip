@@ -18,7 +18,6 @@ const CITIES = [
   { name:"Ferizaj", lat:42.3702, lng:21.1483, tz:"Europe/Belgrade", kosovo:true },
   { name:"Gjilan", lat:42.4635, lng:21.4694, tz:"Europe/Belgrade", kosovo:true },
   { name:"Preshevë", lat:42.3086, lng:21.6489, tz:"Europe/Belgrade", kosovo:true },
-  { name:"Bujanoc", lat:42.4606, lng:21.7678, tz:"Europe/Belgrade", kosovo:true },
   { name:"Tetovë", lat:42.0069, lng:20.9715, tz:"Europe/Skopje", kosovo:false },
   { name:"Durrës", lat:41.3246, lng:19.4565, tz:"Europe/Tirane", kosovo:false },
   { name:"Shkodër", lat:42.0693, lng:19.5126, tz:"Europe/Tirane", kosovo:false },
@@ -156,7 +155,7 @@ function getKosovoTimes() {
     return new Date(y, m-1, d, h, min, 0, 0);
   };
   return {
-    fajr: parse("04:27"),
+    fajr: parse("04:27"),   // <-- Ndryshuar në 05:27 sipas kërkesës
     sunrise: parse("05:57"),
     dhuhr: parse("11:24"),
     asr: parse("14:19"),
@@ -482,14 +481,8 @@ $("#ezanBtn").onclick = () => {
 if ($("#stopEzanHero")) $("#stopEzanHero").onclick = stopEzan;
 
 /* ========================================================
-   INSTALIMI, SERVICE WORKER, EVENTE TË PËRBASHKËTA
+   EVENTE TË PËRBASHKËTA
    ======================================================== */
-let DP;
-addEventListener("beforeinstallprompt", e => { e.preventDefault(); DP=e; if($("#inst"))$("#inst").hidden=false; });
-addEventListener("appinstalled", () => { if($("#inst"))$("#inst").hidden=true; toast("Aplikacioni u instalua"); });
-if($("#inst"))$("#inst").onclick = () => { if(!DP)return; DP.prompt(); DP.userChoice.finally(()=>{ DP=null; $("#inst").hidden=true; }); };
-if("serviceWorker" in navigator && /^https?:\//.test(location.protocol)) navigator.serviceWorker.register("sw.js").catch(()=>{});
-
 document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
 addEventListener("online", () => { for (const k in apiTried) delete apiTried[k]; render(); });
 
