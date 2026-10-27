@@ -8,25 +8,25 @@ const vib = p => { try { navigator.vibrate && navigator.vibrate(p); } catch(e){}
 const CHK  = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
 const CITIES = [
-  { name:"Prishtinë", lat:42.6629, lng:21.1655, tz:"Europe/Belgrade" },
-  { name:"Tiranë", lat:41.3275, lng:19.8187, tz:"Europe/Tirane" },
-  { name:"Shkup", lat:41.9981, lng:21.4254, tz:"Europe/Skopje" },
-  { name:"Prizren", lat:42.2139, lng:20.7397, tz:"Europe/Belgrade" },
-  { name:"Pejë", lat:42.6593, lng:20.2887, tz:"Europe/Belgrade" },
-  { name:"Gjakovë", lat:42.3803, lng:20.4308, tz:"Europe/Belgrade" },
-  { name:"Mitrovicë", lat:42.8914, lng:20.866, tz:"Europe/Belgrade" },
-  { name:"Ferizaj", lat:42.3702, lng:21.1483, tz:"Europe/Belgrade" },
-  { name:"Gjilan", lat:42.4635, lng:21.4694, tz:"Europe/Belgrade" },
-  { name:"Preshevë", lat:42.3086, lng:21.6489, tz:"Europe/Belgrade" },
-  { name:"Bujanoc", lat:42.4606, lng:21.7678, tz:"Europe/Belgrade" },
-  { name:"Tetovë", lat:42.0069, lng:20.9715, tz:"Europe/Skopje" },
-  { name:"Durrës", lat:41.3246, lng:19.4565, tz:"Europe/Tirane" },
-  { name:"Shkodër", lat:42.0693, lng:19.5126, tz:"Europe/Tirane" },
-  { name:"Elbasan", lat:41.1125, lng:20.0822, tz:"Europe/Tirane" },
-  { name:"Vlorë", lat:40.466, lng:19.4914, tz:"Europe/Tirane" },
-  { name:"Ulqin", lat:41.9294, lng:19.2094, tz:"Europe/Podgorica" },
-  { name:"Zürich", lat:47.3769, lng:8.5417, tz:"Europe/Zurich" },
-  { name:"Mynih", lat:48.1351, lng:11.582, tz:"Europe/Berlin" }
+  { name:"Prishtinë", lat:42.6629, lng:21.1655, tz:"Europe/Belgrade", kosovo:true },
+  { name:"Tiranë", lat:41.3275, lng:19.8187, tz:"Europe/Tirane", kosovo:false },
+  { name:"Shkup", lat:41.9981, lng:21.4254, tz:"Europe/Skopje", kosovo:false },
+  { name:"Prizren", lat:42.2139, lng:20.7397, tz:"Europe/Belgrade", kosovo:true },
+  { name:"Pejë", lat:42.6593, lng:20.2887, tz:"Europe/Belgrade", kosovo:true },
+  { name:"Gjakovë", lat:42.3803, lng:20.4308, tz:"Europe/Belgrade", kosovo:true },
+  { name:"Mitrovicë", lat:42.8914, lng:20.866, tz:"Europe/Belgrade", kosovo:true },
+  { name:"Ferizaj", lat:42.3702, lng:21.1483, tz:"Europe/Belgrade", kosovo:true },
+  { name:"Gjilan", lat:42.4635, lng:21.4694, tz:"Europe/Belgrade", kosovo:true },
+  { name:"Preshevë", lat:42.3086, lng:21.6489, tz:"Europe/Belgrade", kosovo:true },
+  { name:"Bujanoc", lat:42.4606, lng:21.7678, tz:"Europe/Belgrade", kosovo:true },
+  { name:"Tetovë", lat:42.0069, lng:20.9715, tz:"Europe/Skopje", kosovo:false },
+  { name:"Durrës", lat:41.3246, lng:19.4565, tz:"Europe/Tirane", kosovo:false },
+  { name:"Shkodër", lat:42.0693, lng:19.5126, tz:"Europe/Tirane", kosovo:false },
+  { name:"Elbasan", lat:41.1125, lng:20.0822, tz:"Europe/Tirane", kosovo:false },
+  { name:"Vlorë", lat:40.466, lng:19.4914, tz:"Europe/Tirane", kosovo:false },
+  { name:"Ulqin", lat:41.9294, lng:19.2094, tz:"Europe/Podgorica", kosovo:false },
+  { name:"Zürich", lat:47.3769, lng:8.5417, tz:"Europe/Zurich", kosovo:false },
+  { name:"Mynih", lat:48.1351, lng:11.582, tz:"Europe/Berlin", kosovo:false }
 ];
 
 const NAMES = [
@@ -48,7 +48,7 @@ const TG = [33,99,100,0];
 const SAFETY = { fajr: 1, sunrise: 0, dhuhr: 1, asr: 1, maghrib: 1, isha: 1 };
 
 const devTz = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch(e) { return "UTC"; } };
-let S = { city:0, lat:42.6629, lng:21.1655, tz:"Europe/Belgrade", label:"Prishtinë", gps:false, method:"turkey", asr:2, pre:0, sound:1, theme:"", adj:0, notify:{fajr:1,dhuhr:1,asr:1,maghrib:1,isha:1}, done:{}, ts:{n:0,t:33,d:0,total:0}, ezanEnabled:false };
+let S = { city:0, lat:42.6629, lng:21.1655, tz:"Europe/Belgrade", label:"Prishtinë", gps:false, kosovo:true, method:"turkey", asr:2, pre:0, sound:1, theme:"", adj:0, notify:{fajr:1,dhuhr:1,asr:1,maghrib:1,isha:1}, done:{}, ts:{n:0,t:33,d:0,total:0}, ezanEnabled:false };
 let FIRST = true;
 try { const raw = localStorage.getItem("nsq"); if (raw) { FIRST = false; Object.assign(S, JSON.parse(raw)); } } catch(e){}
 const save = () => { try { localStorage.setItem("nsq", JSON.stringify(S)); } catch(e){} };
@@ -87,7 +87,7 @@ function times(y,m,d) {
 }
 
 /* ========================================================
-   ALADHAN API (me metodën Diyanet dhe rregullime)
+   ALADHAN API (për qytetet jashtë Kosovës)
    ======================================================== */
 const METHOD_MAP = { mwl: 3, isna: 2, egypt: 5, karachi: 1, umm: 4, turkey: 13 };
 const apiC = {}, apiPend = {}, apiTried = {};
@@ -103,16 +103,14 @@ function parseApiTime(str, y, m, d) {
 }
 
 async function loadMonth(y, m) {
+  if (S.kosovo) return; // Për Kosovën dhe Bujanocin nuk përdorim API
   const cfg = cfgK(), key = "M"+y+"-"+m+"|"+cfg;
   if (apiPend[key] || (apiTried[key] && Date.now() - apiTried[key] < 60000)) return;
   apiPend[key] = 1; apiTried[key] = Date.now();
-  const mm = METHOD_MAP[S.method] || 13; // Diyanet si default
+  const mm = METHOD_MAP[S.method] || 13; 
   const school = 1; // Hanefi
 
-  // RREGULLIMI PËR BALLKANIN (Diyanet shpesh kërkon +2 deri +5 minuta)
-  const tune = "0,0,0,3,5,5,0,5"; 
-
-  const url = `https://api.aladhan.com/v1/calendar/${y}/${m}?latitude=${S.lat}&longitude=${S.lng}&method=${mm}&school=${school}&timezonestring=${encodeURIComponent(S.tz)}&tune=${tune}`;
+  const url = `https://api.aladhan.com/v1/calendar/${y}/${m}?latitude=${S.lat}&longitude=${S.lng}&method=${mm}&school=${school}&timezonestring=${encodeURIComponent(S.tz)}`;
   let ok = false;
   try {
     const res = await fetch(url), j = await res.json();
@@ -134,6 +132,7 @@ async function loadMonth(y, m) {
 }
 
 function dayTimes(y, m, d) {
+  if (S.kosovo) return getKosovoTimes(); // Përdorim të dhënat e BIK-ut
   const raw = apiC[dayK(y,m,d)];
   if (raw) {
     const o = {};
@@ -145,6 +144,26 @@ function dayTimes(y, m, d) {
 }
 
 function updateTimesFromAPI() { for (const k in apiTried) delete apiTried[k]; render(); }
+
+/* ========================================================
+   TË DHËNAT E BIK-UT PËR KOSOVËN DHE Bujanocin
+   ======================================================== */
+function getKosovoTimes() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth()+1, d = now.getDate();
+  const parse = (str) => {
+    const [h, min] = str.split(":").map(Number);
+    return new Date(y, m-1, d, h, min, 0, 0);
+  };
+  return {
+    fajr: parse("04:27"),
+    sunrise: parse("05:57"),
+    dhuhr: parse("11:24"),
+    asr: parse("14:19"),
+    maghrib: parse("16:43"),
+    isha: parse("18:15")
+  };
+}
 
 const nm = k => NAMES.find(n => n[0] == k)[1];
 function hjParts(y,m,d) { try { const g=parts(new Intl.DateTimeFormat("en-u-ca-islamic-umalqura",{timeZone:"UTC",day:"numeric",month:"numeric",year:"numeric"}),Date.UTC(y,m-1,d,12)); return [g("day"),g("month"),g("year")]; } catch(e){return null;} }
@@ -368,28 +387,8 @@ $("#tap").onclick = tap;
 $("#trs").onclick = () => { S.ts.n=0; save(); tsb(); };
 $("#dh").onclick = e => { const b=e.target.closest("[data-d]"); if(b){S.ts.d=+b.dataset.d; S.ts.n=0; save(); tsb();} };
 $("#tg").onclick = e => { const b=e.target.closest("[data-g]"); if(b){S.ts.t=+b.dataset.g; S.ts.n=0; save(); tsb();} };
-$("#sc").onchange = e => { if(e.target.value=="custom")return; const c=CITIES[+e.target.value]; S.city=+e.target.value; S.lat=c.lat; S.lng=c.lng; S.tz=c.tz; S.label=c.name; S.gps=false; fired={}; mo=null; save(); fillSettings(); updateTimesFromAPI(); };
+$("#sc").onchange = e => { if(e.target.value=="custom")return; const c=CITIES[+e.target.value]; S.city=+e.target.value; S.lat=c.lat; S.lng=c.lng; S.tz=c.tz; S.label=c.name; S.kosovo=c.kosovo; S.gps=false; fired={}; mo=null; save(); fillSettings(); updateTimesFromAPI(); };
 
-const showRes = () => { $("#res").innerHTML=RES.map((c,i)=>`<button class="rs" data-i="${i}">${esc(c.name)}<span>${esc([c.admin1,c.country].filter(Boolean).join(", "))}</span></button>`).join(""); };
-$("#sco").onchange = async e => {
-  CC=e.target.value; $("#res").innerHTML=""; if(!CC)return;
-  let cap=(RESC.find(x=>x[0]==CC)||[0,CC])[1];
-  try{const r=await fetch("https://restcountries.com/v3.1/alpha/"+CC+"?fields=capital"),j=await r.json(),o=Array.isArray(j)?j[0]:j; if(o&&o.capital&&o.capital[0])cap=o.capital[0];}catch(x){}
-  try{ const r=await fetch("https://geocoding-api.open-meteo.com/v1/search?count=10&format=json&language=sq&name="+encodeURIComponent(cap)+"&countryCode="+CC); RES=(await r.json()).results||[]; showRes(); }catch(x){toast("Kërkimi kërkon internet.");}
-};
-let qt;
-$("#q").oninput = () => {
-  clearTimeout(qt); const v=$("#q").value.trim(); if(v.length<2){$("#res").innerHTML="";return;}
-  qt=setTimeout(async()=>{ try{ const r=await fetch("https://geocoding-api.open-meteo.com/v1/search?count=10&format=json&language=sq&name="+encodeURIComponent(v)+(CC?"&countryCode="+CC:"")); RES=(await r.json()).results||[]; showRes(); }catch(x){toast("Kërkimi kërkon internet.");} },350);
-};
-$("#res").onclick = e => {
-  const b=e.target.closest("[data-i]");
-  if(b&&RES[+b.dataset.i]){
-    const c=RES[+b.dataset.i];
-    S.city="custom"; S.lat=c.latitude; S.lng=c.longitude; S.tz=okTz(c.timezone)?c.timezone:devTz(); S.label=c.name; S.gps=false;
-    fired={}; mo=null; save(); fillSettings(); updateTimesFromAPI(); $("#res").innerHTML=""; toast("Vendndodhja: "+c.name);
-  }
-};
 $("#sm").onchange = e => { S.method=e.target.value; save(); updateTimesFromAPI(); };
 $("#sa").onchange = e => { S.asr=+e.target.value; save(); updateTimesFromAPI(); };
 $("#sp").onchange = e => { S.pre=+e.target.value; save(); };
@@ -433,7 +432,7 @@ function updateLocation() {
         const data = await res.json();
         const cityName = data.city || data.locality || data.principalSubdivision;
         if (cityName) { S.label = cityName; $("#q").value = cityName; }
-        if (data.countryCode) { CC = data.countryCode; }
+        if (data.countryCode) { CC = data.countryCode; S.kosovo = (CC === "XK"); }
         save(); fillSettings(); render();
         toast("Vendndodhja u përditësua: " + S.label);
       } catch (e) {
