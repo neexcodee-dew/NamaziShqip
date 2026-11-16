@@ -96,28 +96,23 @@
 
 /* ---------- Dark Theme (Rregulluar plotësisht) ---------- */
 [data-theme="dark"] {
-  /* Sfondet dhe Sipërfaqet */
   --bg: #061410;
   --bg-elevated: #0a1c17;
   --bg-soft: #0d241e;
   --surface: #0c1f19;
   --surface-2: #112b23;
   
-  /* Teksti */
   --text: #e8f2ed;
   --text-muted: #9eb3a9;
   --text-soft: #728c80;
   
-  /* Kufijtë */
   --border: rgba(232, 242, 237, 0.08);
   --border-strong: rgba(232, 242, 237, 0.15);
   
-  /* Ngjyrat Kryesore */
   --primary: #4fb28a;
   --primary-hover: #68c8a1;
   --accent: #d4af37;
   
-  /* Hije */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -126,7 +121,6 @@
   --ring: 0 0 0 3px rgba(79, 178, 138, 0.3);
 }
 
-/* Përshtatja automatike me sistemin */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #061410;
@@ -201,7 +195,6 @@ h1, h2, h3, h4 {
   color: var(--text);
 }
 
-/* Focus */
 :focus-visible {
   outline: none;
   box-shadow: var(--ring);
@@ -1711,7 +1704,6 @@ input[type="range"]::-moz-range-thumb {
    DARK MODE FIXES (Inputet, Selectet, Butonat)
    ============================================ */
 
-/* 1. Rregullimi i të gjitha inputeve në Dark Mode */
 [data-theme="dark"] input[type="number"],
 [data-theme="dark"] input[type="text"],
 [data-theme="dark"] input[type="search"],
@@ -1725,13 +1717,11 @@ input[type="range"]::-moz-range-thumb {
   appearance: none;
 }
 
-/* 2. Rregullimi i opsioneve brenda select (për shfletuesit që e mbështesin) */
 [data-theme="dark"] select option {
   background-color: var(--surface-2);
   color: var(--text);
 }
 
-/* 3. Fokusimi i inputeve në Dark Mode */
 [data-theme="dark"] input:focus,
 [data-theme="dark"] select:focus {
   border-color: var(--primary) !important;
@@ -1739,16 +1729,14 @@ input[type="range"]::-moz-range-thumb {
   outline: none;
 }
 
-/* 4. Rregullimi i placeholder-ve */
 [data-theme="dark"] input::placeholder {
   color: var(--text-soft);
   opacity: 0.8;
 }
 
-/* 5. Rregullimi i butonit "Kërko" (button-primary) në Dark Mode */
 [data-theme="dark"] .button-primary {
   background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-  color: #04150f !important; /* Tekst i errët për kontrast më të mirë mbi gjelbërt */
+  color: #04150f !important;
   box-shadow: 0 4px 14px rgba(79, 178, 138, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -1756,7 +1744,6 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: 0 8px 22px rgba(79, 178, 138, 0.4);
 }
 
-/* 6. Rregullimi i listës së rregullimeve (Sabahu, Lindja, etj.) */
 [data-theme="dark"] .adjustment-list .setting-field {
   background: var(--surface);
   padding: 8px 14px;
@@ -1765,26 +1752,43 @@ input[type="range"]::-moz-range-thumb {
   margin-bottom: 6px;
 }
 
-[data-theme="dark"] .adjustment-list .setting-field span {
+[data-theme="dark"] .adjustment-list .setting-field > span:first-child {
   color: var(--text-muted);
   font-size: 13.5px;
 }
 
 [data-theme="dark"] .adjustment-list input[type="number"] {
-  width: 75px;
+  width: 75px !important;
+  padding: 6px 10px !important;
+  background-color: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: var(--r-xs) !important;
   text-align: center;
+  font-family: var(--font-sans);
   font-weight: 700;
-  padding: 6px 8px;
+  font-size: 14px;
+  box-shadow: none !important;
+  outline: none !important;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+[data-theme="dark"] .adjustment-list input[type="number"]::-webkit-outer-spin-button,
+[data-theme="dark"] .adjustment-list input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+[data-theme="dark"] .adjustment-list input[type="number"]:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(79, 178, 138, 0.25) !important;
 }
 
-/* 7. Rregullimi i kartave në Dark Mode (për të mos u dukur të sheshta) */
 [data-theme="dark"] .surface {
   background: linear-gradient(180deg, var(--surface) 0%, #091a15 100%);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
-/* 8. Rregullimi i butonave "Përdor GPS", "Gjej qytetin" etj. */
 [data-theme="dark"] .button-quiet {
   background: var(--surface-2);
   border-color: var(--border);
@@ -1796,18 +1800,47 @@ input[type="range"]::-moz-range-thumb {
   color: var(--primary);
 }
 
-/* 9. Rregullimi i statusit "Online" për të mos verbërojë */
 [data-theme="dark"] .connection-status {
   color: var(--primary);
   background: rgba(79, 178, 138, 0.1);
   border-color: rgba(79, 178, 138, 0.2);
 }
 
-/* 10. Rregullimi i inputeve brenda dark mode kur ato kanë klasë specifike */
 [data-theme="dark"] .location-search input,
 [data-theme="dark"] .location-search select,
 [data-theme="dark"] .search-line input {
   background: var(--surface-2) !important;
   color: var(--text) !important;
   border: 1px solid var(--border-strong) !important;
+}
+
+/* ============================================
+   NETLIFY BADGE FIX (Mos mbulon navigimin)
+   ============================================ */
+a[href*="netlify.com"], 
+.netlify-badge,
+[data-netlify="true"] a {
+  position: fixed !important;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 12px) !important;
+  right: 16px !important;
+  z-index: 100 !important;
+  transform: scale(0.65) !important;
+  transform-origin: bottom right !important;
+  opacity: 0.6 !important;
+  transition: opacity 0.2s ease !important;
+  border-radius: var(--r-sm) !important;
+}
+
+a[href*="netlify.com"]:hover,
+.netlify-badge:hover {
+  opacity: 1 !important;
+}
+
+/* Në ekrane të vogla, fshih butonin e Netlify që të mos pengojë */
+@media (max-width: 768px) {
+  a[href*="netlify.com"], 
+  .netlify-badge,
+  [data-netlify="true"] a {
+    display: none !important;
+  }
 }
