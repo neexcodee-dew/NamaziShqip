@@ -1815,32 +1815,45 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* ============================================
-   NETLIFY BADGE FIX (Mos mbulon navigimin)
+   NETLIFY BADGE FIX (Zgjidhje përfundimtare - Zhvendoset në cep)
    ============================================ */
-a[href*="netlify.com"], 
+
+/* Kap çdo element që Netlify injekton */
+#netlify-badge,
 .netlify-badge,
-[data-netlify="true"] a {
+a[href*="netlify.com"],
+iframe[src*="netlify.com"] {
   position: fixed !important;
-  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 12px) !important;
+  /* E vendos në këndin e sipërm të djathtë të ekranit, larg navigimit */
+  top: 16px !important;
   right: 16px !important;
-  z-index: 100 !important;
-  transform: scale(0.65) !important;
-  transform-origin: bottom right !important;
-  opacity: 0.6 !important;
-  transition: opacity 0.2s ease !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: 99999 !important;
+  
+  /* E bën më të vogël dhe gjysmë transparente */
+  transform: scale(0.6) !important;
+  transform-origin: top right !important;
+  opacity: 0.15 !important; /* Pothuajse e padukshme në fillim */
+  transition: opacity 0.3s ease, transform 0.3s ease !important;
   border-radius: var(--r-sm) !important;
 }
 
+/* Kur kalon miu mbi të, shfaqet normalisht */
+#netlify-badge:hover,
+.netlify-badge:hover,
 a[href*="netlify.com"]:hover,
-.netlify-badge:hover {
+iframe[src*="netlify.com"]:hover {
   opacity: 1 !important;
+  transform: scale(0.8) !important;
 }
 
-/* Në ekrane të vogla, fshih butonin e Netlify që të mos pengojë */
+/* FSHIH PLOTËSISHT NË TELEFONA (sepse atje pengon) */
 @media (max-width: 768px) {
-  a[href*="netlify.com"], 
+  #netlify-badge,
   .netlify-badge,
-  [data-netlify="true"] a {
+  a[href*="netlify.com"],
+  iframe[src*="netlify.com"] {
     display: none !important;
   }
 }
