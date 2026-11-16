@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="sq">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08251f">
+  <title>NamaziShqip — Offline</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #071612; color: #f1f5ec; }
+    body { display: grid; min-height: 100vh; margin: 0; place-items: center; }
+    main { width: min(440px, calc(100% - 40px)); padding: 28px; border: 1px solid #29463a; border-radius: 24px; background: #0d221c; text-align: center; }
+    img { width: 56px; height: 56px; margin: 0 auto 18px; border-radius: 15px; }
+    h1 { margin: 0 0 12px; font-size: 23px; }
+    p { color: #aebdb1; line-height: 1.65; }
+    a { display: inline-block; margin-top: 10px; padding: 12px 17px; border-radius: 12px; background: #4ac79a; color: #072117; font-weight: 700; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="./assets/logo/icon-192.png" alt="">
+    <h1 id="title">Nuk ka lidhje interneti</h1>
+    <p id="message">Aplikacioni do të hapet kur lidhja të rikthehet. Nëse ishte hapur më parë, rifresko faqen për të përdorur llogaritjen offline.</p>
+    <a href="./index.html" id="retry">Provo përsëri</a>
+  </main>
+  <script>
+    const language = (navigator.language || "sq").slice(0, 2);
+    const text = {
+      sq: ["Nuk ka lidhje interneti", "Aplikacioni do të hapet kur lidhja të rikthehet. Nëse ishte hapur më parë, rifresko faqen për të përdorur llogaritjen offline.", "Provo përsëri"],
+      en: ["No internet connection", "The app will open when your connection returns. If it was already open, reload it to use offline prayer calculations.", "Try again"],
+      de: ["Keine Internetverbindung", "Die App öffnet sich wieder, sobald die Verbindung verfügbar ist. War sie bereits geöffnet, lade sie für die Offline-Berechnung neu.", "Erneut versuchen"]
+    }[language] || ["Nuk ka lidhje interneti", "Aplikacioni do të hapet kur lidhja të rikthehet. Nëse ishte hapur më parë, rifresko faqen për të përdorur llogaritjen offline.", "Provo përsëri"];
+    document.documentElement.lang = ["sq", "en", "de"].includes(language) ? language : "sq";
+    document.getElementById("title").textContent = text[0];
+    document.getElementById("message").textContent = text[1];
+    document.getElementById("retry").textContent = text[2];
+  </script>
+</body>
+</html>

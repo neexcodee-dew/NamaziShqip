@@ -1,13 +1,14 @@
 {
-  "name": "NamaziShqip – Kohët e namazit",
+  "id": "./index.html",
+  "name": "NamaziShqip — Kohët e namazit",
   "short_name": "NamaziShqip",
-  "description": "Kohët e sakta të namazit për Shqipëri, Kosovë dhe diasporë.",
+  "description": "Kohë namazi të llogaritura sipas vendndodhjes dhe metodës suaj.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#edf2f4",
-  "theme_color": "#0f766e",
+  "orientation": "any",
+  "background_color": "#071612",
+  "theme_color": "#08251f",
   "lang": "sq",
   "dir": "ltr",
   "categories": ["lifestyle", "utilities"],
@@ -33,16 +34,16 @@
   ],
   "shortcuts": [
     {
-      "name": "Kohët e sotme",
-      "short_name": "Sot",
-      "url": "./index.html#v0",
-      "icons": [{ "src": "assets/logo/icon-192.png", "sizes": "192x192" }]
+      "name": "Kohët e namazit",
+      "short_name": "Namazet",
+      "url": "./index.html#home",
+      "icons": [{ "src": "assets/logo/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Takvimi mujor",
       "short_name": "Takvimi",
-      "url": "./index.html#v1",
-      "icons": [{ "src": "assets/logo/icon-192.png", "sizes": "192x192" }]
+      "url": "./index.html#calendar",
+      "icons": [{ "src": "assets/logo/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

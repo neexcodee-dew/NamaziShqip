@@ -1,504 +1,1844 @@
-"use strict";
-const $ = s => document.querySelector(s), R = Math.PI/180, D = 180/Math.PI;
-const sin = a => Math.sin(a*R), cos = a => Math.cos(a*R);
-const fixA = a => ((a%360)+360)%360, fixH = a => ((a%24)+24)%24;
-const pad = n => String(n).padStart(2,"0");
-const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const vib = p => { try { navigator.vibrate && navigator.vibrate(p); } catch(e){} };
-const CHK  = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+import {
+  calculatePrayerDay,
+  getPrayerWindow,
+  getQibla,
+  timezoneForCoordinates,
+  zonedWallTimeToInstant,
+  PRAYER_KEYS,
+  OBLIGATORY_KEYS
+} from "./assets/js/prayer-core.mjs";
+
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+const STORAGE_KEY = "namazishqip.settings.v2";
+const LEGACY_KEY = "nsq";
+const CIRCUMFERENCE = 2 * Math.PI * 106;
+const PRAYER_SYMBOLS = { fajr: "☼", sunrise: "◌", dhuhr: "◉", asr: "◒", maghrib: "◕", isha: "☾" };
+const PRAYER_ARABIC = {
+  fajr: "الفجر",
+  sunrise: "الشروق",
+  dhuhr: "الظهر",
+  asr: "العصر",
+  maghrib: "المغرب",
+  isha: "العشاء"
+};
+const DEFAULT_ADJUSTMENTS = { fajr: 0, sunrise: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 };
+const DEFAULT_PRAYERS = { fajr: true, dhuhr: true, asr: true, maghrib: true, isha: true };
+
+const COPY = {
+  sq: {
+    brandTagline: "Koha jote. Qetësia jote.",
+    online: "Online", offline: "Pa internet", install: "Instalo",
+    chooseLocation: "Zgjidh vendndodhjen", pageEyebrow: "Udhërrëfyesi yt i përditshëm",
+    pageTitle: "Kohët e namazit", nextPrayer: "Namazi i radhës",
+    timeRemaining: "Koha e mbetur", dailySchedule: "Orari i ditës",
+    prayerSchedule: "Namazet e sotme",
+    methodNote: "Orari varet nga metoda e zgjedhur dhe mund të ndryshojë nga kalendari i xhamisë suaj.",
+    yourDay: "Dita jote", prayerProgress: "Namazet e shënuara",
+    quranVerse: "Ajet për kohët e namazit",
+    sourceNisa: "En-Nisa, 4:103 · Lexo burimin",
+    dailyHadith: "Hadith i verifikuar",
+    hadithSource: "Sahih al-Bukhari 6464 · Lexo burimin",
+    hadithSourceMuslim: "Sahih Muslim 597a · Lexo burimin",
+    ramadan: "Ramazani", sehri: "Syfyri", iftar: "Iftari",
+    ramadanNote: "Kohët e syfyrit dhe iftarit bazohen te Sabahu dhe Akshami.",
+    fridayReminder: "Kujtesë për xhumanë", monthView: "Pamja mujore",
+    monthlyCalendar: "Takvimi mujor", print: "Shtyp",
+    downloadCsv: "Shkarko CSV",
+    calendarNote: "Takvimi përdor të njëjtën metodë, medh'heb dhe rregullime si orari i ditës.",
+    direction: "Drejtimi", qibla: "Kibla", activateCompass: "Aktivizo busullën",
+    bearing: "Këndi i kibles", distanceToKaaba: "Largësia deri te Qabja",
+    compassFallback: "Drejtimi statik llogaritet nga koordinatat. Busulla kërkon sensor dhe leje nga pajisja.",
+    quietPractice: "Praktikë e qetë", tasbih: "Tesbihu digjital",
+    customTarget: "Cak i personalizuar", reset: "Rifillo",
+    tasbihPersistence: "Numërimi ruhet në këtë pajisje. Dridhja varet nga mbështetja e telefonit.",
+    personalize: "Përshtate për vete", settings: "Cilësimet",
+    locationSettings: "Vendndodhja",
+    locationExplain: "Orari dhe zona kohore përcaktohen nga koordinatat e zgjedhura.",
+    country: "Shteti", city: "Qyteti", search: "Kërko", useGps: "Përdor GPS",
+    identifyGps: "Gjej qytetin (dërgo koordinatat)", clearLocation: "Hiq vendndodhjen",
+    privacyNote: "Koordinatat nga GPS llogariten në pajisje. Për emrin e qytetit, mund t'i dërgosh veçmas te OpenStreetMap.",
+    popularCities: "Qytete të shpejta",
+    prayerCalculation: "Llogaritja e namazit",
+    calculationExplain: "Zgjidh konventën që përdor komuniteti yt lokal.",
+    calculationMethod: "Metoda e llogaritjes", asrMethod: "Metoda e Ikindisë",
+    standard: "Shafi'i / Standard", hanafi: "Hanefi", timeFormat: "Formati i orës",
+    adjustmentNote: "Rregullimet shtohen në minutat e metodës së zgjedhur.",
+    alerts: "Njoftimet",
+    notificationsExplain: "Njoftimet lokale kërkojnë që kjo faqe të jetë e hapur.",
+    reminderBefore: "Kujto para namazit", atPrayerTime: "Në kohën e namazit",
+    enableNotifications: "Lejo njoftimet", testNotification: "Provo njoftimin",
+    backgroundLimit: "Shfletuesit nuk dërgojnë njoftime kur aplikacioni është mbyllur; kjo kërkon Web Push dhe server. Në iOS, njoftimet web kërkojnë instalim në Home Screen dhe version të mbështetur.",
+    azan: "Ezani",
+    azanExplain: "Kontrollet e audios funksionojnë pasi të japësh leje me një prekje.",
+    enableAzan: "Aktivizo ezanin e plotë", volume: "Volumi",
+    previewAzan: "Dëgjo provën", pauseResume: "Ndalo / vazhdo", stopAudio: "Ndalo audion",
+    audioNote: "Ky projekt përmban një skedar ezani. Luajtja automatike mund të bllokohet nga shfletuesi.",
+    appearance: "Pamja", appearanceExplain: "Ruhet në këtë pajisje.",
+    language: "Gjuha", theme: "Tema", systemTheme: "Sipas pajisjes",
+    lightTheme: "E çelët", darkTheme: "E errët",
+    installOffline: "Instalimi dhe offline",
+    installExplain: "Orari llogaritet në pajisje dhe mund të rifreskohet pa internet.",
+    iosInstallNote: "Në iPhone: hap menynë Share në Safari dhe zgjidh “Add to Home Screen”.",
+    navHome: "Sot", navCalendar: "Takvimi", navQibla: "Kibla",
+    navTasbih: "Tesbih", navSettings: "Cilësimet",
+    chooseCountry: "Zgjidh shtetin", choosePopular: "Zgjidh qytetin",
+    searchCityPlaceholder: "Kërko qytet në botë",
+    noLocation: "Vendndodhja nuk është caktuar. Përdor GPS ose kërko një qytet.",
+    noSchedule: "Vendos një vendndodhje për të llogaritur orarin.",
+    awaitingLocation: "Duke pritur vendndodhjen",
+    coordinates: "Koordinatat", timezone: "Zona kohore",
+    localTime: "Ora lokale", method: "Metoda",
+    noCityResults: "Nuk u gjet qytet. Provo një emër tjetër ose shto shtetin.",
+    searchError: "Kërkimi i qytetit dështoi. Kontrollo lidhjen dhe provo sërish.",
+    searchForCity: "Shkruaj një qytet për të kërkuar.",
+    selectedLocation: "Vendndodhja u përditësua.",
+    myLocation: "Vendndodhja ime",
+    gpsUnavailable: "GPS nuk mbështetet nga ky shfletues.",
+    gpsDenied: "Vendndodhja nuk u mor. Lejo GPS-in ose kërko qytetin manualisht.",
+    gpsTimeout: "GPS nuk u përgjigj me kohë. Provo përsëri ose kërko qytetin.",
+    gpsPrivacyConfirm: "Për të gjetur emrin e qytetit, koordinatat e sakta do t'i dërgohen shërbimit OpenStreetMap/Photon. Të vazhdohet?",
+    gpsNameReady: "Vendndodhja u ruajt lokalisht. Emrin e qytetit mund ta kërkosh veçmas.",
+    gpsNameError: "Nuk u gjet emri i qytetit. Koordinatat dhe zona kohore vazhdojnë të përdoren.",
+    locationCleared: "Vendndodhja u hoq. Zgjidh një qytet ose përdor GPS.",
+    loading: "Duke llogaritur…",
+    loadingLocation: "Duke kërkuar vendndodhjen…",
+    calculationError: "Llogaritja dështoi. Kontrollo koordinatat dhe cilësimet.",
+    prayerNames: ["Sabahu", "Lindja e diellit", "Dreka", "Ikindia", "Akshami", "Jacia"],
+    method_mwl: "Liga Botërore Myslimane",
+    method_isna: "Shoqata Islame e Amerikës së Veriut (ISNA)",
+    method_egypt: "Autoriteti i Përgjithshëm Egjiptian",
+    method_umm: "Universiteti Umm al-Qura",
+    method_karachi: "Universiteti i Shkencave Islame, Karaçi",
+    method_turkey: "Diyanet İşleri Başkanlığı, Turqi",
+    quranTranslation: "Vërtet, namazi është detyrë për besimtarët në kohë të caktuara.",
+    hadithText1: "Veprat më të dashura tek Allahu janë ato që bëhen me vazhdimësi, edhe nëse janë të pakta.",
+    hadithText2: "Pas çdo namazi: madhëroje Allahun 33 herë, falënderoje 33 herë dhe shpalle madhështinë e Tij 33 herë; pastaj plotësoje të njëqindtën me teuhid.",
+    prayerLabel: "Namazi", nextAt: "Namazi i radhës: {prayer}, në {time}.",
+    prayerDue: "Hyri koha e {prayer}.",
+    prayerReminder: "{prayer} fillon pas {minutes} min, në {time}.",
+    permissionUnsupported: "Ky shfletues nuk mbështet njoftimet.",
+    permissionGranted: "Leja e njoftimeve është aktive.",
+    permissionDenied: "Njoftimet janë bllokuar në cilësimet e shfletuesit.",
+    permissionDefault: "Leja e njoftimeve ende nuk është dhënë.",
+    notificationsEnabled: "Njoftimet u aktivizuan.",
+    notificationsDisabled: "Njoftimet u çaktivizuan.",
+    notificationsNeedPermission: "Lejo njoftimet në shfletues për t'i përdorur.",
+    testNotificationSent: "U dërgua njoftimi provë.",
+    tasbihTotal: "Gjithsej: {count}",
+    resetConfirm: "Të rifillohet numërimi aktual?",
+    tasbihComplete: "U plotësua caku: {target}.",
+    ramadanDays: "Ramazani pritet pas {count} ditësh.",
+    ramadanToday: "Ramazani Mubarak",
+    ramadanTomorrow: "Ramazani pritet nesër.",
+    fridayToday: "Sot është e premte. Kujtoje xhumanë sipas orarit të xhamisë sate.",
+    fridayNext: "E premtja e radhës është {date}. Kontrollo orarin e xhamisë sate.",
+    noCalendarLocation: "Zgjidh vendndodhjen për të parë takvimin.",
+    noPrayerData: "—",
+    csvDownloaded: "Takvimi u shkarkua si CSV.",
+    notificationTitle: "NamaziShqip",
+    locationSettingsLabel: "Ndrysho vendndodhjen",
+    compassPermission: "Lejo orientimin e pajisjes për të përdorur busullën.",
+    compassActive: "Busulla është aktive. Ktheje pajisjen drejt shigjetës.",
+    compassStatic: "Drejtimi statik është gati. Busulla e pajisjes nuk është aktive.",
+    compassUnavailable: "Sensori i busullës nuk mbështetet në këtë pajisje.",
+    compassDenied: "Leja e busullës nuk u dha.",
+    azanPlaying: "Ezani po luhet.",
+    azanBlocked: "Shfletuesi bllokoi audion. Shtyp “Dëgjo provën” fillimisht.",
+    azanEnabledToast: "Ezani u aktivizua për namazet e zgjedhura.",
+    azanDisabledToast: "Ezani u çaktivizua.",
+    audioPaused: "Ezani u ndal përkohësisht.", audioStopped: "Audioja u ndal.",
+    systemTime: "Ora e pajisjes",
+    installed: "Aplikacioni është i instaluar.",
+    installUnavailable: "Përdor menynë e shfletuesit për ta instaluar.",
+    monthNames: ["Janar", "Shkurt", "Mars", "Prill", "Maj", "Qershor", "Korrik", "Gusht", "Shtator", "Tetor", "Nëntor", "Dhjetor"],
+    calendarHeaders: ["Data", "Data Hixhri", "Sabahu", "Lindja", "Dreka", "Ikindia", "Akshami", "Jacia"],
+    target: "Caku", custom: "Personalizuar", saveError: "Preferencat nuk mund të ruhen në këtë shfletues."
+  },
+  en: {
+    brandTagline: "Your time. Your peace.", online: "Online", offline: "Offline", install: "Install",
+    chooseLocation: "Choose location", pageEyebrow: "Your daily guide", pageTitle: "Prayer times",
+    nextPrayer: "Next prayer", timeRemaining: "Time remaining", dailySchedule: "Today's schedule",
+    prayerSchedule: "Today's prayers",
+    methodNote: "Times follow the selected method and may differ from your local mosque timetable.",
+    yourDay: "Your day", prayerProgress: "Prayers checked", quranVerse: "A verse about prayer times",
+    sourceNisa: "An-Nisa, 4:103 · Read source", dailyHadith: "Verified hadith",
+    hadithSource: "Sahih al-Bukhari 6464 · Read source",
+    hadithSourceMuslim: "Sahih Muslim 597a · Read source", ramadan: "Ramadan",
+    sehri: "Suhoor", iftar: "Iftar",
+    ramadanNote: "Suhoor and iftar times use Fajr and Maghrib.",
+    fridayReminder: "Jumu'ah reminder", monthView: "Month view",
+    monthlyCalendar: "Monthly calendar", print: "Print", downloadCsv: "Download CSV",
+    calendarNote: "The calendar uses the same method, madhab, and adjustments as today's schedule.",
+    direction: "Direction", qibla: "Qibla", activateCompass: "Activate compass",
+    bearing: "Qibla bearing", distanceToKaaba: "Distance to the Kaaba",
+    compassFallback: "The static direction is calculated from your coordinates. A compass needs a supported sensor and device permission.",
+    quietPractice: "A quiet practice", tasbih: "Digital tasbih",
+    customTarget: "Custom target", reset: "Reset",
+    tasbihPersistence: "Your count is saved on this device. Haptics depend on phone support.",
+    personalize: "Make it yours", settings: "Settings", locationSettings: "Location",
+    locationExplain: "Times and timezone are based on the selected coordinates.",
+    country: "Country", city: "City", search: "Search", useGps: "Use GPS",
+    identifyGps: "Find city name (send coordinates)", clearLocation: "Clear location",
+    privacyNote: "GPS coordinates are calculated on this device. To identify a city, you can send them separately to OpenStreetMap.",
+    popularCities: "Popular cities", prayerCalculation: "Prayer calculation",
+    calculationExplain: "Choose the convention followed by your local community.",
+    calculationMethod: "Calculation method", asrMethod: "Asr method",
+    standard: "Shafi'i / Standard", hanafi: "Hanafi", timeFormat: "Time format",
+    adjustmentNote: "Adjustments are added to the selected method's times.",
+    alerts: "Notifications",
+    notificationsExplain: "Local notifications require this page to remain open.",
+    reminderBefore: "Remind before prayer", atPrayerTime: "At prayer time",
+    enableNotifications: "Allow notifications", testNotification: "Test notification",
+    backgroundLimit: "Browsers cannot send notifications after the app is closed; that requires Web Push and a server. On iOS, web notifications require Home Screen installation and a supported version.",
+    azan: "Adhan", azanExplain: "Audio controls work after you allow playback with a tap.",
+    enableAzan: "Enable full adhan", volume: "Volume", previewAzan: "Play preview",
+    pauseResume: "Pause / resume", stopAudio: "Stop audio",
+    audioNote: "This project includes one adhan audio file. Browsers may block automatic playback.",
+    appearance: "Appearance", appearanceExplain: "Saved on this device.",
+    language: "Language", theme: "Theme", systemTheme: "Use device setting",
+    lightTheme: "Light", darkTheme: "Dark",
+    installOffline: "Install and offline", installExplain: "Times are calculated on this device and can be refreshed without internet.",
+    iosInstallNote: "On iPhone: open Safari's Share menu and choose “Add to Home Screen”.",
+    navHome: "Today", navCalendar: "Calendar", navQibla: "Qibla",
+    navTasbih: "Tasbih", navSettings: "Settings",
+    chooseCountry: "Choose a country", choosePopular: "Choose a city",
+    searchCityPlaceholder: "Search for a city worldwide",
+    noLocation: "No location is set. Use GPS or search for a city.",
+    noSchedule: "Choose a location to calculate prayer times.",
+    awaitingLocation: "Waiting for location", coordinates: "Coordinates",
+    timezone: "Timezone", localTime: "Local time", method: "Method",
+    noCityResults: "No city found. Try another name or add the country.",
+    searchError: "City search failed. Check your connection and try again.",
+    searchForCity: "Enter a city to search.", selectedLocation: "Location updated.",
+    myLocation: "My location", gpsUnavailable: "GPS is not supported by this browser.",
+    gpsDenied: "Location was not received. Allow GPS or search manually.",
+    gpsTimeout: "GPS did not respond in time. Try again or search for a city.",
+    gpsPrivacyConfirm: "To identify the city, your precise coordinates will be sent to the OpenStreetMap/Photon service. Continue?",
+    gpsNameReady: "Location saved on this device. You can look up the city name separately.",
+    gpsNameError: "City name was not found. Coordinates and timezone are still in use.",
+    locationCleared: "Location cleared. Choose a city or use GPS.",
+    loading: "Calculating…", loadingLocation: "Finding your location…",
+    calculationError: "Calculation failed. Check coordinates and settings.",
+    prayerNames: ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"],
+    method_mwl: "Muslim World League", method_isna: "Islamic Society of North America (ISNA)",
+    method_egypt: "Egyptian General Authority", method_umm: "Umm Al-Qura University",
+    method_karachi: "University of Islamic Sciences, Karachi",
+    method_turkey: "Diyanet İşleri Başkanlığı, Turkey",
+    quranTranslation: "Indeed, prayer is prescribed for believers at appointed times.",
+    hadithText1: "The deeds most loved by Allah are those done consistently, even if they are few.",
+    hadithText2: "After each prayer: glorify Allah 33 times, praise Him 33 times, and declare His greatness 33 times; complete the hundredth with words of tawhid.",
+    prayerLabel: "Prayer", nextAt: "Next prayer: {prayer}, at {time}.",
+    prayerDue: "{prayer} time has started.",
+    prayerReminder: "{prayer} begins in {minutes} min, at {time}.",
+    permissionUnsupported: "This browser does not support notifications.",
+    permissionGranted: "Notification permission is enabled.",
+    permissionDenied: "Notifications are blocked in browser settings.",
+    permissionDefault: "Notification permission has not been granted.",
+    notificationsEnabled: "Notifications enabled.",
+    notificationsDisabled: "Notifications disabled.",
+    notificationsNeedPermission: "Allow notifications in your browser to use them.",
+    testNotificationSent: "Test notification sent.", tasbihTotal: "Total: {count}",
+    resetConfirm: "Reset the current count?",
+    tasbihComplete: "Target reached: {target}.", ramadanDays: "Ramadan is expected in {count} days.",
+    ramadanToday: "Ramadan Mubarak", ramadanTomorrow: "Ramadan is expected tomorrow.",
+    fridayToday: "Today is Friday. Check your mosque's Jumu'ah time.",
+    fridayNext: "The next Friday is {date}. Check your mosque's Jumu'ah time.",
+    noCalendarLocation: "Choose a location to view the calendar.",
+    noPrayerData: "—", csvDownloaded: "Calendar downloaded as CSV.",
+    notificationTitle: "NamaziShqip", locationSettingsLabel: "Change location",
+    compassPermission: "Allow device orientation to use the compass.",
+    compassActive: "Compass is active. Turn your device toward the pointer.",
+    compassStatic: "Static direction is ready. Device compass is not active.",
+    compassUnavailable: "A compass sensor is not available on this device.",
+    compassDenied: "Compass permission was not granted.",
+    azanPlaying: "Adhan is playing.",
+    azanBlocked: "The browser blocked audio. Press “Play preview” first.",
+    azanEnabledToast: "Adhan enabled for selected prayers.",
+    azanDisabledToast: "Adhan disabled.", audioPaused: "Adhan paused.", audioStopped: "Audio stopped.",
+    systemTime: "Device time", installed: "App is installed.",
+    installUnavailable: "Use the browser menu to install this app.",
+    monthNames: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    calendarHeaders: ["Date", "Hijri date", "Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"],
+    target: "Target", custom: "Custom", saveError: "Preferences could not be saved in this browser."
+  },
+  de: {
+    brandTagline: "Deine Zeit. Deine Ruhe.", online: "Online", offline: "Offline", install: "Installieren",
+    chooseLocation: "Standort auswählen", pageEyebrow: "Dein täglicher Wegweiser",
+    pageTitle: "Gebetszeiten", nextPrayer: "Nächstes Gebet",
+    timeRemaining: "Verbleibende Zeit", dailySchedule: "Tagesplan",
+    prayerSchedule: "Heutige Gebete",
+    methodNote: "Die Zeiten richten sich nach der gewählten Methode und können vom Plan deiner Moschee abweichen.",
+    yourDay: "Dein Tag", prayerProgress: "Abgehakte Gebete",
+    quranVerse: "Ein Vers über Gebetszeiten",
+    sourceNisa: "An-Nisa, 4:103 · Quelle lesen", dailyHadith: "Verifizierter Hadith",
+    hadithSource: "Sahih al-Bukhari 6464 · Quelle lesen",
+    hadithSourceMuslim: "Sahih Muslim 597a · Quelle lesen",
+    ramadan: "Ramadan", sehri: "Suhur", iftar: "Iftar",
+    ramadanNote: "Suhur- und Iftarzeiten richten sich nach Fadschr und Maghrib.",
+    fridayReminder: "Jumu'ah-Erinnerung", monthView: "Monatsansicht",
+    monthlyCalendar: "Monatskalender", print: "Drucken", downloadCsv: "CSV herunterladen",
+    calendarNote: "Der Kalender verwendet dieselbe Methode, Madhhab-Einstellung und Korrektur wie der Tagesplan.",
+    direction: "Richtung", qibla: "Qibla", activateCompass: "Kompass aktivieren",
+    bearing: "Qibla-Richtung", distanceToKaaba: "Entfernung zur Kaaba",
+    compassFallback: "Die feste Richtung wird anhand deiner Koordinaten berechnet. Ein Kompass benötigt einen unterstützten Sensor und Gerätefreigabe.",
+    quietPractice: "Ein stilles Ritual", tasbih: "Digitaler Tasbih",
+    customTarget: "Eigenes Ziel", reset: "Zurücksetzen",
+    tasbihPersistence: "Dein Zählerstand wird auf diesem Gerät gespeichert. Vibration hängt von der Geräteunterstützung ab.",
+    personalize: "Persönlich anpassen", settings: "Einstellungen",
+    locationSettings: "Standort",
+    locationExplain: "Zeiten und Zeitzone richten sich nach den ausgewählten Koordinaten.",
+    country: "Land", city: "Stadt", search: "Suchen", useGps: "GPS verwenden",
+    identifyGps: "Stadtname finden (Koordinaten senden)", clearLocation: "Standort löschen",
+    privacyNote: "GPS-Koordinaten werden auf diesem Gerät berechnet. Für den Stadtnamen kannst du sie separat an OpenStreetMap senden.",
+    popularCities: "Beliebte Städte", prayerCalculation: "Gebetsberechnung",
+    calculationExplain: "Wähle die Konvention deiner örtlichen Gemeinschaft.",
+    calculationMethod: "Berechnungsmethode", asrMethod: "Asr-Methode",
+    standard: "Schafi'i / Standard", hanafi: "Hanafitisch", timeFormat: "Zeitformat",
+    adjustmentNote: "Korrekturen werden zu den Zeiten der gewählten Methode addiert.",
+    alerts: "Benachrichtigungen",
+    notificationsExplain: "Lokale Benachrichtigungen benötigen eine geöffnete Seite.",
+    reminderBefore: "Vor dem Gebet erinnern", atPrayerTime: "Zur Gebetszeit",
+    enableNotifications: "Benachrichtigungen erlauben", testNotification: "Testbenachrichtigung",
+    backgroundLimit: "Browser senden keine Benachrichtigungen, wenn die App geschlossen ist; dafür sind Web Push und ein Server nötig. Unter iOS sind eine Installation auf dem Home-Bildschirm und eine unterstützte Version erforderlich.",
+    azan: "Adhan", azanExplain: "Audio funktioniert, nachdem du die Wiedergabe per Tippen freigegeben hast.",
+    enableAzan: "Vollen Adhan aktivieren", volume: "Lautstärke",
+    previewAzan: "Vorschau abspielen", pauseResume: "Anhalten / fortsetzen", stopAudio: "Audio stoppen",
+    audioNote: "Dieses Projekt enthält eine Adhan-Audiodatei. Der Browser kann die automatische Wiedergabe blockieren.",
+    appearance: "Darstellung", appearanceExplain: "Wird auf diesem Gerät gespeichert.",
+    language: "Sprache", theme: "Design", systemTheme: "Geräteeinstellung verwenden",
+    lightTheme: "Hell", darkTheme: "Dunkel",
+    installOffline: "Installation und Offlinebetrieb",
+    installExplain: "Zeiten werden auf dem Gerät berechnet und können ohne Internet aktualisiert werden.",
+    iosInstallNote: "Auf dem iPhone: Öffne in Safari das Teilen-Menü und wähle „Zum Home-Bildschirm“.",
+    navHome: "Heute", navCalendar: "Kalender", navQibla: "Qibla",
+    navTasbih: "Tasbih", navSettings: "Einstellungen",
+    chooseCountry: "Land wählen", choosePopular: "Stadt wählen",
+    searchCityPlaceholder: "Weltweit nach einer Stadt suchen",
+    noLocation: "Kein Standort festgelegt. Nutze GPS oder suche eine Stadt.",
+    noSchedule: "Wähle einen Standort, um Gebetszeiten zu berechnen.",
+    awaitingLocation: "Warte auf Standort", coordinates: "Koordinaten",
+    timezone: "Zeitzone", localTime: "Ortszeit", method: "Methode",
+    noCityResults: "Keine Stadt gefunden. Probiere einen anderen Namen oder ergänze das Land.",
+    searchError: "Stadtsuche fehlgeschlagen. Prüfe die Verbindung und versuche es erneut.",
+    searchForCity: "Gib eine Stadt für die Suche ein.", selectedLocation: "Standort aktualisiert.",
+    myLocation: "Mein Standort", gpsUnavailable: "GPS wird von diesem Browser nicht unterstützt.",
+    gpsDenied: "Standort nicht erhalten. Erlaube GPS oder suche manuell nach einer Stadt.",
+    gpsTimeout: "GPS hat nicht rechtzeitig geantwortet. Versuche es erneut oder suche eine Stadt.",
+    gpsPrivacyConfirm: "Um den Stadtnamen zu ermitteln, werden deine genauen Koordinaten an OpenStreetMap/Photon gesendet. Fortfahren?",
+    gpsNameReady: "Standort auf diesem Gerät gespeichert. Den Stadtnamen kannst du separat suchen.",
+    gpsNameError: "Stadtname nicht gefunden. Koordinaten und Zeitzone werden weiterhin verwendet.",
+    locationCleared: "Standort gelöscht. Wähle eine Stadt oder nutze GPS.",
+    loading: "Berechnung läuft…", loadingLocation: "Standort wird ermittelt…",
+    calculationError: "Berechnung fehlgeschlagen. Prüfe Koordinaten und Einstellungen.",
+    prayerNames: ["Fadschr", "Sonnenaufgang", "Dhuhr", "Asr", "Maghrib", "Ischaa"],
+    method_mwl: "Muslim World League",
+    method_isna: "Islamische Gesellschaft Nordamerikas (ISNA)",
+    method_egypt: "Ägyptische Allgemeine Behörde",
+    method_umm: "Umm-al-Qura-Universität",
+    method_karachi: "Universität für Islamwissenschaften, Karatschi",
+    method_turkey: "Diyanet İşleri Başkanlığı, Türkei",
+    quranTranslation: "Das Gebet ist den Gläubigen zu bestimmten Zeiten vorgeschrieben.",
+    hadithText1: "Allah liebt am meisten die Taten, die beständig verrichtet werden, auch wenn sie gering sind.",
+    hadithText2: "Nach jedem Gebet: Allah 33-mal preisen, Ihm 33-mal danken und Seine Größe 33-mal verkünden; das Hundertste mit dem Glaubensbekenntnis vervollständigen.",
+    prayerLabel: "Gebet", nextAt: "Nächstes Gebet: {prayer}, um {time}.",
+    prayerDue: "Die Zeit für {prayer} hat begonnen.",
+    prayerReminder: "{prayer} beginnt in {minutes} Min. um {time}.",
+    permissionUnsupported: "Dieser Browser unterstützt keine Benachrichtigungen.",
+    permissionGranted: "Benachrichtigungen sind freigegeben.",
+    permissionDenied: "Benachrichtigungen sind in den Browsereinstellungen gesperrt.",
+    permissionDefault: "Die Freigabe für Benachrichtigungen wurde noch nicht erteilt.",
+    notificationsEnabled: "Benachrichtigungen aktiviert.",
+    notificationsDisabled: "Benachrichtigungen deaktiviert.",
+    notificationsNeedPermission: "Erlaube Benachrichtigungen im Browser, um sie zu verwenden.",
+    testNotificationSent: "Testbenachrichtigung gesendet.", tasbihTotal: "Gesamt: {count}",
+    resetConfirm: "Aktuellen Zählerstand zurücksetzen?",
+    tasbihComplete: "Ziel erreicht: {target}.", ramadanDays: "Ramadan wird in {count} Tagen erwartet.",
+    ramadanToday: "Ramadan Mubarak", ramadanTomorrow: "Ramadan wird morgen erwartet.",
+    fridayToday: "Heute ist Freitag. Prüfe die Jumu'ah-Zeit deiner Moschee.",
+    fridayNext: "Der nächste Freitag ist {date}. Prüfe die Jumu'ah-Zeit deiner Moschee.",
+    noCalendarLocation: "Wähle einen Standort, um den Kalender zu sehen.",
+    noPrayerData: "—", csvDownloaded: "Kalender als CSV heruntergeladen.",
+    notificationTitle: "NamaziShqip", locationSettingsLabel: "Standort ändern",
+    compassPermission: "Erlaube die Geräteausrichtung, um den Kompass zu nutzen.",
+    compassActive: "Kompass aktiv. Drehe dein Gerät in Richtung des Zeigers.",
+    compassStatic: "Feste Richtung verfügbar. Der Gerätekompass ist nicht aktiv.",
+    compassUnavailable: "Auf diesem Gerät ist kein Kompasssensor verfügbar.",
+    compassDenied: "Kompassfreigabe wurde nicht erteilt.",
+    azanPlaying: "Adhan wird abgespielt.",
+    azanBlocked: "Der Browser hat Audio blockiert. Drücke zuerst „Vorschau abspielen“.",
+    azanEnabledToast: "Adhan für ausgewählte Gebete aktiviert.",
+    azanDisabledToast: "Adhan deaktiviert.", audioPaused: "Adhan pausiert.", audioStopped: "Audio gestoppt.",
+    systemTime: "Gerätezeit", installed: "App ist installiert.",
+    installUnavailable: "Nutze das Browsermenü, um die App zu installieren.",
+    monthNames: ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"],
+    calendarHeaders: ["Datum", "Hidschri", "Fadschr", "Sonnenaufgang", "Dhuhr", "Asr", "Maghrib", "Ischaa"],
+    target: "Ziel", custom: "Benutzerdefiniert", saveError: "Einstellungen konnten in diesem Browser nicht gespeichert werden."
+  }
+};
 
 const CITIES = [
-  { name:"Prishtinë", lat:42.6629, lng:21.1655, tz:"Europe/Belgrade", kosovo:true },
-  { name:"Tiranë", lat:41.3275, lng:19.8187, tz:"Europe/Tirane", kosovo:false },
-  { name:"Shkup", lat:41.9981, lng:21.4254, tz:"Europe/Skopje", kosovo:false },
-  { name:"Prizren", lat:42.2139, lng:20.7397, tz:"Europe/Belgrade", kosovo:true },
-  { name:"Pejë", lat:42.6593, lng:20.2887, tz:"Europe/Belgrade", kosovo:true },
-  { name:"Gjakovë", lat:42.3803, lng:20.4308, tz:"Europe/Belgrade", kosovo:true },
-  { name:"Mitrovicë", lat:42.8914, lng:20.866, tz:"Europe/Belgrade", kosovo:true },
-  { name:"Ferizaj", lat:42.3702, lng:21.1483, tz:"Europe/Belgrade", kosovo:true },
-  { name:"Gjilan", lat:42.4635, lng:21.4694, tz:"Europe/Belgrade", kosovo:true },
-  { name:"Preshevë", lat:42.3086, lng:21.6489, tz:"Europe/Belgrade", kosovo:true },
-  { name:"Tetovë", lat:42.0069, lng:20.9715, tz:"Europe/Skopje", kosovo:false },
-  { name:"Durrës", lat:41.3246, lng:19.4565, tz:"Europe/Tirane", kosovo:false },
-  { name:"Shkodër", lat:42.0693, lng:19.5126, tz:"Europe/Tirane", kosovo:false },
-  { name:"Elbasan", lat:41.1125, lng:20.0822, tz:"Europe/Tirane", kosovo:false },
-  { name:"Vlorë", lat:40.466, lng:19.4914, tz:"Europe/Tirane", kosovo:false },
-  { name:"Ulqin", lat:41.9294, lng:19.2094, tz:"Europe/Podgorica", kosovo:false },
-  { name:"Zürich", lat:47.3769, lng:8.5417, tz:"Europe/Zurich", kosovo:false },
-  { name:"Mynih", lat:48.1351, lng:11.582, tz:"Europe/Berlin", kosovo:false }
+  { id: "prishtina", name: "Prishtinë", country: "XK", lat: 42.6629, lon: 21.1655, zone: "Europe/Belgrade" },
+  { id: "prizren", name: "Prizren", country: "XK", lat: 42.2139, lon: 20.7397, zone: "Europe/Belgrade" },
+  { id: "peje", name: "Pejë", country: "XK", lat: 42.6593, lon: 20.2887, zone: "Europe/Belgrade" },
+  { id: "gjakova", name: "Gjakovë", country: "XK", lat: 42.3803, lon: 20.4308, zone: "Europe/Belgrade" },
+  { id: "mitrovica", name: "Mitrovicë", country: "XK", lat: 42.8914, lon: 20.866, zone: "Europe/Belgrade" },
+  { id: "tirana", name: "Tiranë", country: "AL", lat: 41.3275, lon: 19.8187, zone: "Europe/Tirane" },
+  { id: "durres", name: "Durrës", country: "AL", lat: 41.3246, lon: 19.4565, zone: "Europe/Tirane" },
+  { id: "skopje", name: "Shkup", country: "MK", lat: 41.9981, lon: 21.4254, zone: "Europe/Skopje" },
+  { id: "tetovo", name: "Tetovë", country: "MK", lat: 42.0069, lon: 20.9715, zone: "Europe/Skopje" },
+  { id: "belgrade", name: "Beograd", country: "RS", lat: 44.7866, lon: 20.4489, zone: "Europe/Belgrade" },
+  { id: "novipazar", name: "Novi Pazar", country: "RS", lat: 43.1367, lon: 20.5122, zone: "Europe/Belgrade" },
+  { id: "sarajevo", name: "Sarajevo", country: "BA", lat: 43.8563, lon: 18.4131, zone: "Europe/Sarajevo" },
+  { id: "podgorica", name: "Podgorica", country: "ME", lat: 42.4304, lon: 19.2594, zone: "Europe/Podgorica" },
+  { id: "istanbul", name: "İstanbul", country: "TR", lat: 41.0082, lon: 28.9784, zone: "Europe/Istanbul" },
+  { id: "berlin", name: "Berlin", country: "DE", lat: 52.52, lon: 13.405, zone: "Europe/Berlin" },
+  { id: "munich", name: "München", country: "DE", lat: 48.1372, lon: 11.5756, zone: "Europe/Berlin" },
+  { id: "zurich", name: "Zürich", country: "CH", lat: 47.3769, lon: 8.5417, zone: "Europe/Zurich" },
+  { id: "vienna", name: "Wien", country: "AT", lat: 48.2082, lon: 16.3738, zone: "Europe/Vienna" },
+  { id: "london", name: "London", country: "GB", lat: 51.5072, lon: -0.1276, zone: "Europe/London" },
+  { id: "paris", name: "Paris", country: "FR", lat: 48.8566, lon: 2.3522, zone: "Europe/Paris" },
+  { id: "newyork", name: "New York", country: "US", lat: 40.7128, lon: -74.006, zone: "America/New_York" },
+  { id: "toronto", name: "Toronto", country: "CA", lat: 43.6532, lon: -79.3832, zone: "America/Toronto" },
+  { id: "makkah", name: "Makkah", country: "SA", lat: 21.3891, lon: 39.8579, zone: "Asia/Riyadh" },
+  { id: "jakarta", name: "Jakarta", country: "ID", lat: -6.2088, lon: 106.8456, zone: "Asia/Jakarta" },
+  { id: "kualalumpur", name: "Kuala Lumpur", country: "MY", lat: 3.139, lon: 101.6869, zone: "Asia/Kuala_Lumpur" },
+  { id: "sydney", name: "Sydney", country: "AU", lat: -33.8688, lon: 151.2093, zone: "Australia/Sydney" },
+  { id: "tokyo", name: "Tokyo", country: "JP", lat: 35.6762, lon: 139.6503, zone: "Asia/Tokyo" }
 ];
 
-const NAMES = [
-  ["fajr","Sabahu","الفجر", "🌅"], ["sunrise","Lindja e diellit","الشروق", "☀️"],
-  ["dhuhr","Dreka","الظهر", "☀️"], ["asr","Ikindia","العصر", "🌇"],
-  ["maghrib","Akshami","المغرب", "🌆"], ["isha","Jacia","العشاء", "🌙"]
-];
-const FIVE = ["fajr","dhuhr","asr","maghrib","isha"];
-const METHODS = {
-  mwl:["Liga Botërore Myslimane",18,17,0], isna:["ISNA",15,15,0], egypt:["Egjipti",19.5,17.5,0],
-  karachi:["Karaçi",18,18,0], umm:["Umm al-Qura",18.5,0,90], turkey:["Turqi (Diyanet)",18,17,0]
+const localeFor = language => ({ sq: "sq-AL", en: "en-GB", de: "de-DE" }[language] || "sq-AL");
+const t = (key, values = {}) => {
+  const pack = COPY[S.language] || COPY.sq;
+  let result = pack[key] ?? COPY.sq[key] ?? key;
+  if (Array.isArray(result)) return result;
+  for (const [name, value] of Object.entries(values)) {
+    result = result.replace(new RegExp("\\{" + name + "\\}", "g"), String(value));
+  }
+  return result;
 };
-const MON = ["Janar","Shkurt","Mars","Prill","Maj","Qershor","Korrik","Gusht","Shtator","Tetor","Nëntor","Dhjetor"];
-const DAY = ["e diel","e hënë","e martë","e mërkurë","e enjte","e premte","e shtunë"];
-const HIJ = ["Muharrem","Safer","Rebiul-evel","Rebiul-ahir","Xhumadel-ula","Xhumadel-ahire","Rexheb","Shaban","Ramazan","Sheval","Dhulkade","Dhulhixhe"];
-const KAABA = [21.4225, 39.8262];
-const DH = [["Subhanallah","سُبْحَانَ ٱللَّٰهِ"],["Elhamdulilah","ٱلْحَمْدُ لِلَّٰهِ"],["Allahu Ekber","ٱللَّٰهُ أَكْبَرُ"],["Lirë",""]];
-const TG = [33,99,100,0];
-const SAFETY = { fajr: 1, sunrise: 0, dhuhr: 1, asr: 1, maghrib: 1, isha: 1 };
+const safeText = value => String(value ?? "").replace(/[&<>"']/g, character => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+}[character]));
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const pad = value => String(value).padStart(2, "0");
+const vib = duration => {
+  try { if (navigator.vibrate) navigator.vibrate(duration); } catch {}
+};
 
-const devTz = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch(e) { return "UTC"; } };
-let S = { city:0, lat:42.6629, lng:21.1655, tz:"Europe/Belgrade", label:"Prishtinë", gps:false, kosovo:true, method:"turkey", asr:2, pre:0, sound:1, theme:"", adj:0, notify:{fajr:1,dhuhr:1,asr:1,maghrib:1,isha:1}, done:{}, ts:{n:0,t:33,d:0,total:0}, ezanEnabled:false };
-let FIRST = true;
-try { const raw = localStorage.getItem("nsq"); if (raw) { FIRST = false; Object.assign(S, JSON.parse(raw)); } } catch(e){}
-const save = () => { try { localStorage.setItem("nsq", JSON.stringify(S)); } catch(e){} };
-const okTz = z => { try { new Intl.DateTimeFormat("en", {timeZone: z}); return true; } catch(e) { return false; } };
-if (!okTz(S.tz)) S.tz = devTz();
-
-/* ========================================================
-   LLOGARITJET ASTRONOMIKE LOKALE (Fallback)
-   ======================================================== */
-function jul(y,m,d,h) { if(m<=2){y--;m+=12;} const a=Math.floor(y/100),b=2-a+Math.floor(a/4); return Math.floor(365.25*(y+4716))+Math.floor(30.6001*(m+1))+d+(h||0)/24+b-1524.5; }
-function sunPos(j) { const d=j-2451545.0, g=fixA(357.529+.98560028*d), q=fixA(280.459+.98564736*d), L=fixA(q+1.915*sin(g)+.02*sin(2*g)), e=23.439-3.6e-7*d, ra=fixH(Math.atan2(cos(e)*sin(L),cos(L))*D/15); return {decl:Math.asin(sin(e)*sin(L))*D, eqt:q/15-ra}; }
-
-const FC = {};
-function fmtr(key, opt) { const k=key+S.tz; return FC[k]||(FC[k]=new Intl.DateTimeFormat("en-US",Object.assign({timeZone:S.tz},opt))); }
-function parts(f, dt) { const p=f.formatToParts(dt); return t=>+p.find(x=>x.type==t).value; }
-function ymdOf(dt) { const g=parts(fmtr("d",{year:"numeric",month:"numeric",day:"numeric"}),dt); return [g("year"),g("month"),g("day")]; }
-function tzOff(y,m,d) { const probe=Date.UTC(y,m-1,d,12); const g=parts(fmtr("f",{hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric",second:"numeric"}),probe); return (Date.UTC(g("year"),g("month")-1,g("day"),g("hour"),g("minute"),g("second"))-probe)/36e5; }
-const fmt = d => (!d||isNaN(d))?"–":fmtr("t",{hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(d);
-const sh = (y,m,d,n) => { const x=new Date(Date.UTC(y,m-1,d+n)); return [x.getUTCFullYear(),x.getUTCMonth()+1,x.getUTCDate()]; };
-const wday = (y,m,d) => new Date(Date.UTC(y,m-1,d)).getUTCDay();
-
-function times(y,m,d) {
-  const tz=tzOff(y,m,d), jd=jul(y,m,d,12)-S.lng/360, M=METHODS[S.method]||METHODS.mwl, af=(+S.asr===2)?2:1;
-  const core = lat => {
-    const sp=t=>sunPos(jd+t/24), mid=t=>fixH(12-sp(t).eqt);
-    const ang=(a,t,ccw)=>{const s=sp(t),cosH=(-sin(a)-sin(s.decl)*sin(lat))/(cos(s.decl)*cos(lat)); if(cosH<-1||cosH>1)return NaN; const v=Math.acos(cosH)*D/15; return mid(t)+(ccw?-v:v);};
-    const asr=(f,t)=>{const s=sp(t),alt=-Math.atan(1/(f+Math.tan(Math.abs(lat-s.decl)*R)))*D; return ang(alt,t);};
-    let t={fajr:5,sunrise:6,dhuhr:12,asr:13,maghrib:18,isha:18};
-    for(let i=0;i<3;i++){t={fajr:ang(M[1],t.fajr,1),sunrise:ang(.833,t.sunrise,1),dhuhr:mid(t.dhuhr),asr:asr(af,t.asr),maghrib:ang(.833,t.maghrib),isha:M[3]?t.maghrib+M[3]/60:ang(M[2],t.isha)};}
-    return t;
-  };
-  let t=core(S.lat); if(Object.values(t).some(isNaN)){const t2=core(48.6); for(const k in t) if(isNaN(t[k])) t[k]=t2[k];}
-  const off=tz-S.lng/15, o={};
-  for(const k in t){const extra=(SAFETY[k]||0)/60+(S.adj||0)/60, h=fixH(t[k]+off+extra); o[k]=new Date(Date.UTC(y,m-1,d)+(h-tz)*36e5);}
-  return o;
-}
-
-/* ========================================================
-   ALADHAN API (për qytetet jashtë Kosovës)
-   ======================================================== */
-const METHOD_MAP = { mwl: 3, isna: 2, egypt: 5, karachi: 1, umm: 4, turkey: 13 };
-const apiC = {}, apiPend = {}, apiTried = {};
-let lastToastCfg = "";
-const cfgK = () => S.lat+"|"+S.lng+"|"+S.method+"|"+S.asr+"|"+S.tz;
-const dayK = (y,m,d) => y+"-"+m+"-"+d+"|"+cfgK();
-const validT = v => /\d{1,2}:\d{2}/.test(v || "");
-
-function parseApiTime(str, y, m, d) {
-  const mt = /(\d{1,2}):(\d{2})/.exec(str || "");
-  if (!mt) return null;
-  return new Date(Date.UTC(y, m-1, d, +mt[1], +mt[2]) - tzOff(y, m, d) * 36e5 + (S.adj || 0) * 60000);
-}
-
-async function loadMonth(y, m) {
-  if (S.kosovo) return; // Për Kosovën dhe Bujanocin nuk përdorim API
-  const cfg = cfgK(), key = "M"+y+"-"+m+"|"+cfg;
-  if (apiPend[key] || (apiTried[key] && Date.now() - apiTried[key] < 60000)) return;
-  apiPend[key] = 1; apiTried[key] = Date.now();
-  const mm = METHOD_MAP[S.method] || 13; 
-  const school = 1; // Hanefi
-
-  const url = `https://api.aladhan.com/v1/calendar/${y}/${m}?latitude=${S.lat}&longitude=${S.lng}&method=${mm}&school=${school}&timezonestring=${encodeURIComponent(S.tz)}`;
-  let ok = false;
-  try {
-    const res = await fetch(url), j = await res.json();
-    if (j.code === 200 && Array.isArray(j.data)) {
-      j.data.forEach(x => {
-        const t = x.timings, g = x.date && x.date.gregorian;
-        if (!t || !g) return;
-        const o = { fajr:t.Fajr, sunrise:t.Sunrise, dhuhr:t.Dhuhr, asr:t.Asr, maghrib:t.Maghrib, isha:t.Isha };
-        if (Object.values(o).every(validT)) apiC[y+"-"+m+"-"+(+g.day)+"|"+cfg] = o;
-      });
-      ok = true;
-    }
-  } catch(e) { console.log("Gabim API."); }
-  delete apiPend[key];
-  if (ok && cfgK() === cfg) {
-    if (y === Y && m === Mo && lastToastCfg !== cfg) { lastToastCfg = cfg; toast("Kohët u sinkronizuan."); }
-    render();
-  }
-}
-
-function dayTimes(y, m, d) {
-  if (S.kosovo) return getKosovoTimes(); // Përdorim të dhënat e BIK-ut
-  const raw = apiC[dayK(y,m,d)];
-  if (raw) {
-    const o = {};
-    for (const k in raw) o[k] = parseApiTime(raw[k], y, m, d);
-    return o;
-  }
-  loadMonth(y, m);
-  return times(y, m, d);
-}
-
-function updateTimesFromAPI() { for (const k in apiTried) delete apiTried[k]; render(); }
-
-/* ========================================================
-   TË DHËNAT E BIK-UT PËR KOSOVËN DHE Bujanocin
-   ======================================================== */
-function getKosovoTimes() {
-  const now = new Date();
-  const y = now.getFullYear(), m = now.getMonth()+1, d = now.getDate();
-  const parse = (str) => {
-    const [h, min] = str.split(":").map(Number);
-    return new Date(y, m-1, d, h, min, 0, 0);
-  };
+function freshState() {
   return {
-    fajr: parse("04:27"),   // <-- Ndryshuar në 05:27 sipas kërkesës
-    sunrise: parse("05:57"),
-    dhuhr: parse("11:24"),
-    asr: parse("14:19"),
-    maghrib: parse("16:43"),
-    isha: parse("18:15")
+    location: null,
+    method: "mwl",
+    madhab: "shafi",
+    adjustments: { ...DEFAULT_ADJUSTMENTS },
+    timeFormat: "24",
+    language: "sq",
+    theme: "system",
+    notifications: { enabled: false, before: 0, prayers: { ...DEFAULT_PRAYERS } },
+    azan: { enabled: false, volume: 0.8, prayers: { ...DEFAULT_PRAYERS } },
+    tasbih: { count: 0, target: 33, dhikr: 0, total: 0 },
+    checked: {}
   };
 }
 
-const nm = k => NAMES.find(n => n[0] == k)[1];
-function hjParts(y,m,d) { try { const g=parts(new Intl.DateTimeFormat("en-u-ca-islamic-umalqura",{timeZone:"UTC",day:"numeric",month:"numeric",year:"numeric"}),Date.UTC(y,m-1,d,12)); return [g("day"),g("month"),g("year")]; } catch(e){return null;} }
-
-let Y,Mo,Dd,T0,TY,TT,EV,DK,fired={},mo=null;
-
-function render() {
-  [Y,Mo,Dd]=ymdOf(new Date()); DK=Y+"-"+Mo+"-"+Dd;
-
-  T0 = dayTimes(Y,Mo,Dd);
-  TY = dayTimes(...sh(Y,Mo,Dd,-1));
-  TT = dayTimes(...sh(Y,Mo,Dd,1));
-
-  EV=[{k:"isha",t:TY.isha},...NAMES.map(x=>({k:x[0],t:T0[x[0]]})),{k:"fajr",t:TT.fajr}];
-  if(!mo)mo={y:Y,m:Mo};
-  
-  $("#locBtn").textContent="📍 "+S.label;
-  $("#dt").textContent="E "+DAY[wday(Y,Mo,Dd)]+", "+Dd+" "+MON[Mo-1]+" "+Y;
-  const hp=hjParts(Y,Mo,Dd);
-  $("#hj").textContent=hp?hp[0]+" "+HIJ[hp[1]-1]+" "+hp[2]+" H":"";
-  
-  const rz=$("#rmz");
-  if(hp&&hp[1]==9){rz.hidden=false; rz.innerHTML=`<span>Imsaku <b>${fmt(T0.fajr)}</b></span><span>Iftari <b>${fmt(T0.maghrib)}</b></span>`;}else rz.hidden=true;
-  
-  const dn=S.done[DK]||{};
-  $("#list").innerHTML = NAMES.map(([k,a,ar,icon])=>`
-    <div class="row" data-k="${k}">
-      ${k=="sunrise"?'<span class="chk sp"></span>':`<button class="chk ${dn[k]?"on":""}" data-c="${k}">${CHK}</button>`}
-      <div class="n"><b>${icon} ${a}</b><i>${ar}</i></div>
-      <div class="t">${fmt(T0[k])}</div>
-    </div>
-  `).join("");
-  
-  prog(); cal(); qibla(); tick();
-}
-
-function prog() {
-  const cnt=k=>FIVE.filter(p=>(S.done[k]||{})[p]).length, c=cnt(DK);
-  let streak=0; for(let i=c==5?0:1;i<400;i++){if(cnt(sh(Y,Mo,Dd,-i).join("-"))==5)streak++;else break;}
-  let wk=""; for(let i=6;i>=0;i--){const[y,m,d]=sh(Y,Mo,Dd,-i); wk+=`<div class="wd ${i?"":"t"}">${DAY[wday(y,m,d)].slice(2,5)}<i style="--p:${cnt(y+"-"+m+"-"+d)*20}"></i></div>`;}
-  $("#prog").innerHTML=`<div class="ph"><b>Namazet e sotme</b><span>${c} / 5</span></div><div class="bar"><i style="width:${c*20}%"></i></div><div class="week">${wk}</div><p class="mut">Seria: ${streak} ditë me të gjitha namazet</p>`;
-}
-
-function tick() {
-  const n=new Date(); if(ymdOf(n).join("-")!=DK)return render();
-  let i=0; while(i<EV.length-2&&EV[i+1].t<=n)i++;
-  const p=EV[i],q=EV[i+1],s=Math.floor(Math.max(0,q.t-n)/1000);
-  $("#cd").textContent=pad(Math.floor(s/3600))+":"+pad(Math.floor(s%3600/60))+":"+pad(s%60);
-  $("#nxN").textContent=nm(q.k); $("#nxT").textContent="në orën "+fmt(q.t);
-  $("#ring").style.strokeDashoffset=640*(1-Math.min(1,Math.max(0,(n-p.t)/(q.t-p.t))));
-  
-  document.querySelectorAll(".row").forEach(r=>{const k=r.dataset.k,c=i>0&&k==p.k; r.classList.toggle("cur",c); r.classList.toggle("nxt",i<6&&k==q.k); r.classList.toggle("past",!c&&T0[k]<=n);});
-  
-  for(const k in S.notify){if(!S.notify[k])continue; const tr=T0[k]-S.pre*60000,id=DK+k+S.pre; if(n>=tr&&n-tr<120000&&!fired[id]){fired[id]=1; alertUser(k);}}
-}
-
-/* ---------- EZANI DHE NJOFTIMET ---------- */
-let ezanAudio = new Audio("ezani.mp3");
-ezanAudio.preload = "auto";
-
-function stopEzan() {
-  if (!ezanAudio.paused) {
-    ezanAudio.pause();
-    ezanAudio.currentTime = 0;
-    toast("Ezani u ndal.");
+function validLocation(location) {
+  if (!location || !Number.isFinite(Number(location.latitude)) || !Number.isFinite(Number(location.longitude))) return null;
+  if (Number(location.latitude) < -90 || Number(location.latitude) > 90 ||
+      Number(location.longitude) < -180 || Number(location.longitude) > 180) return null;
+  let timeZone = location.timeZone;
+  try {
+    if (!timeZone) timeZone = timezoneForCoordinates(Number(location.latitude), Number(location.longitude));
+    new Intl.DateTimeFormat("en", { timeZone });
+  } catch {
+    try { timeZone = timezoneForCoordinates(Number(location.latitude), Number(location.longitude)); }
+    catch { return null; }
   }
-  const btnHero = $("#stopEzanHero");
-  if (btnHero) btnHero.style.display = "none";
+  return {
+    latitude: Number(location.latitude),
+    longitude: Number(location.longitude),
+    timeZone,
+    label: String(location.label || "My location"),
+    country: String(location.country || ""),
+    countryCode: String(location.countryCode || "").toUpperCase(),
+    source: location.source === "gps" ? "gps" : "search",
+    named: location.named === true || location.source !== "gps"
+  };
+}
+
+function readSavedState() {
+  const state = freshState();
+  try {
+    const current = localStorage.getItem(STORAGE_KEY);
+    if (current) {
+      const saved = JSON.parse(current);
+      Object.assign(state, saved);
+      state.location = validLocation(saved.location);
+      state.adjustments = { ...DEFAULT_ADJUSTMENTS, ...(saved.adjustments || {}) };
+      state.notifications = {
+        ...state.notifications, ...(saved.notifications || {}),
+        prayers: { ...DEFAULT_PRAYERS, ...((saved.notifications && saved.notifications.prayers) || {}) }
+      };
+      state.azan = {
+        ...state.azan, ...(saved.azan || {}),
+        prayers: { ...DEFAULT_PRAYERS, ...((saved.azan && saved.azan.prayers) || {}) }
+      };
+      state.tasbih = { ...state.tasbih, ...(saved.tasbih || {}) };
+      return state;
+    }
+    const legacyRaw = localStorage.getItem(LEGACY_KEY);
+    if (!legacyRaw) return state;
+    const legacy = JSON.parse(legacyRaw);
+    if (legacy.lat != null && legacy.lng != null) {
+      const timeZone = timezoneForCoordinates(Number(legacy.lat), Number(legacy.lng));
+      state.location = validLocation({
+        latitude: Number(legacy.lat),
+        longitude: Number(legacy.lng),
+        timeZone,
+        label: legacy.label || t("myLocation"),
+        source: legacy.gps ? "gps" : "search"
+      });
+    }
+    if (["mwl", "isna", "egypt", "umm", "karachi", "turkey"].includes(legacy.method)) state.method = legacy.method;
+    state.madhab = Number(legacy.asr) === 2 ? "hanafi" : "shafi";
+    if (Number.isFinite(Number(legacy.adj))) {
+      for (const key of PRAYER_KEYS) state.adjustments[key] = Number(legacy.adj);
+    }
+    state.theme = ["light", "dark"].includes(legacy.theme) ? legacy.theme : "system";
+    state.notifications.enabled = Object.values(legacy.notify || {}).some(Boolean);
+    for (const key of OBLIGATORY_KEYS) {
+      state.notifications.prayers[key] = legacy.notify ? !!legacy.notify[key] : false;
+      state.azan.prayers[key] = !!legacy.ezanEnabled;
+    }
+    state.notifications.before = [0, 5, 10, 15].includes(Number(legacy.pre)) ? Number(legacy.pre) : 0;
+    state.azan.enabled = !!legacy.ezanEnabled;
+    state.azan.volume = 0.8;
+    state.timeFormat = "24";
+    if (legacy.ts) {
+      state.tasbih = {
+        count: clamp(parseInt(legacy.ts.n, 10) || 0, 0, 10000),
+        target: [33, 99, 100].includes(Number(legacy.ts.t)) ? Number(legacy.ts.t) : 33,
+        dhikr: clamp(parseInt(legacy.ts.d, 10) || 0, 0, 3),
+        total: Math.max(0, parseInt(legacy.ts.total, 10) || 0)
+      };
+    }
+    state.checked = legacy.done || {};
+  } catch {
+    return state;
+  }
+  return state;
+}
+
+const S = readSavedState();
+if (!["sq", "en", "de"].includes(S.language)) S.language = "sq";
+if (!["mwl", "isna", "egypt", "umm", "karachi", "turkey"].includes(S.method)) S.method = "mwl";
+if (!["shafi", "hanafi"].includes(S.madhab)) S.madhab = "shafi";
+if (!["system", "light", "dark"].includes(S.theme)) S.theme = "system";
+let saveAvailable = true;
+function save() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
+    saveAvailable = true;
+  } catch {
+    saveAvailable = false;
+    showToast(t("saveError"));
+  }
+}
+
+const toast = $("#toast");
+let toastTimer = 0;
+function showToast(message) {
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add("is-visible");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("is-visible"), 4200);
+}
+
+window.addEventListener("error", event => {
+  console.error("NamaziShqip runtime error.", event.error || event.message);
+  showToast(t("calculationError"));
+});
+window.addEventListener("unhandledrejection", event => {
+  console.error("NamaziShqip async error.", event.reason);
+  showToast(t("calculationError"));
+});
+
+function translateStatic() {
+  document.documentElement.lang = S.language;
+  for (const element of $$("[data-i18n]")) element.textContent = t(element.dataset.i18n);
+  for (const element of $$("[data-i18n-placeholder]")) element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
+  $("#locBtn").setAttribute("aria-label", t("locationSettingsLabel"));
+  $("#localClock").setAttribute("aria-label", t("localTime"));
+  $("#citySearch").setAttribute("placeholder", t("searchCityPlaceholder"));
+  $("#searchCityButton").setAttribute("aria-label", t("search"));
+  $("#calendarTable").setAttribute("aria-label", t("monthlyCalendar"));
+  $("#countButton").setAttribute("aria-label", t("tasbih"));
+  $("#compassRose").setAttribute("aria-label", t("qibla"));
+  fillCountrySelect();
+  fillQuickCities();
+  fillMethodSelect();
+  fillToggles();
+}
+
+function fillCountrySelect() {
+  const select = $("#countrySelect");
+  if (!select) return;
+  const previous = S.location?.countryCode || select.value;
+  const locale = localeFor(S.language);
+  const displayNames = new Intl.DisplayNames([locale], { type: "region" });
+  const ignored = new Set(["AA", "AC", "CP", "DG", "EA", "EU", "EZ", "IC", "QO", "TA", "UN", "XA", "XB", "XK"]);
+  const options = [];
+  for (let first = 65; first <= 90; first += 1) {
+    for (let second = 65; second <= 90; second += 1) {
+      const code = String.fromCharCode(first, second);
+      if (ignored.has(code)) continue;
+      try {
+        const label = displayNames.of(code);
+        if (label && label !== code) options.push({ code, label });
+      } catch {}
+    }
+  }
+  options.push({ code: "XK", label: S.language === "sq" ? "Kosovë" : (S.language === "de" ? "Kosovo" : "Kosovo") });
+  options.sort((a, b) => a.label.localeCompare(b.label, locale));
+  select.innerHTML = '<option value="">' + safeText(t("chooseCountry")) + "</option>" +
+    options.map(item => '<option value="' + item.code + '">' + safeText(item.label) + "</option>").join("");
+  if (previous) select.value = previous;
+}
+
+function fillQuickCities() {
+  const select = $("#quickCity");
+  if (!select) return;
+  select.innerHTML = '<option value="">' + safeText(t("choosePopular")) + "</option>" +
+    CITIES.map(city => '<option value="' + city.id + '">' + safeText(city.name) + " · " +
+      safeText(countryName(city.country)) + "</option>").join("");
+}
+
+function fillMethodSelect() {
+  const select = $("#methodSelect");
+  if (!select) return;
+  select.innerHTML = ["mwl", "isna", "egypt", "umm", "karachi", "turkey"]
+    .map(key => '<option value="' + key + '">' + safeText(t("method_" + key)) + "</option>").join("");
+  select.value = S.method;
+}
+
+function fillToggles() {
+  const names = t("prayerNames");
+  const make = (group, selector, values) => {
+    $(selector).innerHTML = OBLIGATORY_KEYS.map(key => {
+      const index = PRAYER_KEYS.indexOf(key);
+      return '<label class="prayer-toggle"><input type="checkbox" data-' + group + '-prayer="' + key + '"' +
+        (values[key] ? " checked" : "") + '><span>' + safeText(names[index]) + "</span></label>";
+    }).join("");
+  };
+  make("notification", "#notificationToggles", S.notifications.prayers);
+  make("azan", "#azanToggles", S.azan.prayers);
+}
+
+function countryName(code) {
+  if (!code) return "";
+  if (code === "XK") return S.language === "sq" ? "Kosovë" : "Kosovo";
+  try { return new Intl.DisplayNames([localeFor(S.language)], { type: "region" }).of(code) || code; }
+  catch { return code; }
+}
+
+function activateTheme() {
+  if (S.theme === "system") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.dataset.theme = S.theme;
+  const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+  const light = S.theme === "light" || (S.theme === "system" && prefersLight);
+  $("meta[name=\"theme-color\"]").content = light ? "#f3f6f0" : "#071612";
+  $("#themeSelect").value = S.theme;
+}
+
+function localParts(instant, timeZone) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    calendar: "gregory",
+    numberingSystem: "latn",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(instant);
+  const result = {};
+  for (const item of parts) if (item.type !== "literal") result[item.type] = Number(item.value);
+  return { year: result.year, month: result.month, day: result.day };
+}
+
+function shiftedDate(date, amount) {
+  const item = new Date(Date.UTC(date.year, date.month - 1, date.day + amount, 12));
+  return { year: item.getUTCFullYear(), month: item.getUTCMonth() + 1, day: item.getUTCDate() };
+}
+
+function dayKey(date) {
+  return [date.year, pad(date.month), pad(date.day)].join("-");
+}
+
+function dateOnlyInstant(date, timeZone) {
+  return zonedWallTimeToInstant(date.year, date.month, date.day, 12, 0, timeZone);
+}
+
+function localizedDate(date, options = {}) {
+  return new Intl.DateTimeFormat(localeFor(S.language), { timeZone: "UTC", ...options })
+    .format(new Date(Date.UTC(date.year, date.month - 1, date.day, 12)));
+}
+
+function formatTime(instant) {
+  if (!(instant instanceof Date) || Number.isNaN(instant.getTime())) return "—";
+  return new Intl.DateTimeFormat(localeFor(S.language), {
+    timeZone: S.location.timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: S.timeFormat === "12" ? "h12" : "h23"
+  }).format(instant);
+}
+
+function formatDateKey(date) {
+  return new Intl.DateTimeFormat(localeFor(S.language), {
+    timeZone: "UTC", weekday: "short", day: "2-digit", month: "short"
+  }).format(new Date(Date.UTC(date.year, date.month - 1, date.day, 12)));
+}
+
+function hijriParts(date) {
+  if (!S.location) return null;
+  try {
+    const instant = dateOnlyInstant(date, S.location.timeZone);
+    const formatter = new Intl.DateTimeFormat(localeFor(S.language) + "-u-ca-islamic-umalqura", {
+      timeZone: S.location.timeZone, day: "numeric", month: "long", year: "numeric"
+    });
+    const parts = formatter.formatToParts(instant);
+    const byType = {};
+    for (const item of parts) if (item.type !== "literal") byType[item.type] = item.value;
+    const numeric = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", {
+      timeZone: S.location.timeZone, day: "numeric", month: "numeric", year: "numeric"
+    }).formatToParts(instant);
+    const values = {};
+    for (const item of numeric) if (item.type !== "literal") values[item.type] = Number(item.value);
+    return {
+      label: formatter.format(instant),
+      day: values.day,
+      month: values.month,
+      year: values.year,
+      monthName: byType.month
+    };
+  } catch {
+    return null;
+  }
+}
+
+const scheduleCache = new Map();
+function scheduleFor(date) {
+  if (!S.location) return null;
+  const key = [
+    dayKey(date), S.location.latitude.toFixed(5), S.location.longitude.toFixed(5),
+    S.location.timeZone, S.method, S.madhab, JSON.stringify(S.adjustments)
+  ].join("|");
+  if (scheduleCache.has(key)) return scheduleCache.get(key);
+  const result = calculatePrayerDay({
+    latitude: S.location.latitude,
+    longitude: S.location.longitude,
+    timeZone: S.location.timeZone,
+    year: date.year,
+    month: date.month,
+    day: date.day,
+    method: S.method,
+    madhab: S.madhab,
+    adjustments: S.adjustments
+  });
+  scheduleCache.set(key, result);
+  if (scheduleCache.size > 500) scheduleCache.delete(scheduleCache.keys().next().value);
+  return result;
+}
+
+let currentDateKey = "";
+let todaySchedule = null;
+let monthView = null;
+let compassHeading = null;
+let absoluteHeadingSeen = false;
+let firedReminders = new Set();
+let lastRamadanKey = "";
+let cachedRamadan = null;
+let deferredInstallPrompt = null;
+let searchAbort = null;
+let searchTimer = 0;
+
+function prayerNames() { return t("prayerNames"); }
+
+function prayerLabel(key) {
+  return prayerNames()[PRAYER_KEYS.indexOf(key)] || key;
+}
+
+function methodLabel(key = S.method) {
+  return t("method_" + key);
+}
+
+function hijriCalendarMonth(date) {
+  const info = hijriParts(date);
+  return info ? { month: info.month, day: info.day } : null;
+}
+
+function renderHeader(now, date) {
+  const timeZone = S.location?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  $("#localClock").textContent = new Intl.DateTimeFormat(localeFor(S.language), {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: S.timeFormat === "12" ? "h12" : "h23"
+  }).format(now);
+  if (!S.location) {
+    $("#gregorianDate").textContent = localizedDate(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    $("#hijriDate").textContent = "";
+    return;
+  }
+  $("#gregorianDate").textContent = localizedDate(date, {
+    weekday: "long", day: "numeric", month: "long", year: "numeric"
+  });
+  const hijri = hijriParts(date);
+  $("#hijriDate").textContent = hijri ? hijri.label + (S.language === "sq" ? " H." : "") : "";
+}
+
+function locationDisplayName(location) {
+  if (!location) return t("chooseLocation");
+  if (location.source === "gps" && !location.named) {
+    return t("myLocation") + " (" + location.latitude.toFixed(3) + ", " + location.longitude.toFixed(3) + ")";
+  }
+  return location.label;
+}
+
+function renderLocation() {
+  const location = S.location;
+  const label = locationDisplayName(location);
+  $("#locationLabel").textContent = label;
+  $("#heroLocation").textContent = label;
+  const country = location && (location.countryCode ? countryName(location.countryCode) : location.country);
+  $("#locationDetails").innerHTML = location
+    ? "<b>" + safeText(locationDisplayName(location)) + "</b>" +
+      (country ? " · " + safeText(country) : "") +
+      "<br>" + safeText(t("coordinates")) + ": " + location.latitude.toFixed(4) + ", " + location.longitude.toFixed(4) +
+      "<br>" + safeText(t("timezone")) + ": " + safeText(location.timeZone)
+    : safeText(t("noLocation"));
+  $("#identifyGpsButton").hidden = !(location && location.source === "gps" && !location.named);
+  $("#clearLocationButton").disabled = !location;
+  $("#timezoneCaption").textContent = location ? location.timeZone : t("systemTime");
+}
+
+function renderPrayerRows(now, windowInfo) {
+  const list = $("#prayerList");
+  if (!S.location || !todaySchedule) {
+    list.innerHTML = '<p class="small-note">' + safeText(t("noSchedule")) + "</p>";
+    $("#methodLabel").textContent = t("awaitingLocation");
+    $("#scheduleNote").textContent = t("noLocation");
+    return;
+  }
+  const names = prayerNames();
+  const currentDay = localParts(now, S.location.timeZone);
+  const key = dayKey(currentDay);
+  const checked = S.checked[key] || {};
+  const nextKey = windowInfo && windowInfo.next ? windowInfo.next.key : "";
+  list.innerHTML = PRAYER_KEYS.map((prayer, index) => {
+    const checkedState = !!checked[prayer] && prayer !== "sunrise";
+    const isPast = todaySchedule[prayer] && todaySchedule[prayer].getTime() <= now.getTime();
+    const isNext = prayer === nextKey;
+    const button = prayer === "sunrise"
+      ? '<button class="prayer-check" type="button" disabled aria-hidden="true"></button>'
+      : '<button class="prayer-check ' + (checkedState ? "is-checked" : "") +
+        '" type="button" data-check-prayer="' + prayer + '" aria-label="' +
+        safeText((checkedState ? (S.language === "en" ? "Uncheck " : S.language === "de" ? "Markierung entfernen: " : "Hiq shenjën: ") : (S.language === "en" ? "Mark " : S.language === "de" ? "Abhaken: " : "Shëno: ")) + names[index]) +
+        '" aria-pressed="' + checkedState + '">' +
+        (checkedState ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>' : "") + "</button>";
+    return '<div class="prayer-row' + (isNext ? " is-next" : "") + (isPast && !isNext ? " is-past" : "") +
+      '" data-prayer-row="' + prayer + '">' + button +
+      '<div class="prayer-name-wrap"><span class="prayer-symbol" aria-hidden="true">' + PRAYER_SYMBOLS[prayer] + "</span>" +
+      '<span class="prayer-name">' + safeText(names[index]) + "</span>" +
+      (S.language === "sq" ? '<span class="prayer-arabic" lang="ar" dir="rtl">' + PRAYER_ARABIC[prayer] + "</span>" : "") +
+      "</div><time class=\"prayer-time\">" + safeText(formatTime(todaySchedule[prayer])) + "</time></div>";
+  }).join("");
+  $("#methodLabel").textContent = methodLabel();
+  $("#scheduleNote").textContent = t("methodNote");
+  $("#calculationCaption").textContent = methodLabel();
+}
+
+function setProgress() {
+  if (!S.location) {
+    $("#progressCount").textContent = "0 / 5";
+    $("#progressBar").style.width = "0%";
+    $("#weekStrip").innerHTML = "";
+    return;
+  }
+  const now = new Date();
+  const today = localParts(now, S.location.timeZone);
+  const todayKey = dayKey(today);
+  const countFor = date => OBLIGATORY_KEYS.filter(key => (S.checked[dayKey(date)] || {})[key]).length;
+  const currentCount = countFor(today);
+  $("#progressCount").textContent = currentCount + " / 5";
+  $("#progressBar").style.width = (currentCount * 20) + "%";
+  const week = [];
+  for (let offset = -6; offset <= 0; offset += 1) {
+    const date = shiftedDate(today, offset);
+    const progress = countFor(date) * 20;
+    const label = localizedDate(date, { weekday: "short" }).replace(/\.$/, "");
+    week.push('<span class="week-day' + (offset === 0 ? " is-today" : "") + '">' +
+      safeText(label) + '<i style="--day-progress:' + progress + '%" title="' + progress + '%"></i></span>');
+  }
+  $("#weekStrip").innerHTML = week.join("");
+}
+
+function ramadanCountdown(today) {
+  const key = dayKey(today) + "|" + (S.location?.timeZone || "");
+  if (key === lastRamadanKey) return cachedRamadan;
+  lastRamadanKey = key;
+  cachedRamadan = null;
+  if (!S.location) return null;
+  const currentHijri = hijriCalendarMonth(today);
+  if (currentHijri && currentHijri.month === 9) {
+    cachedRamadan = { isRamadan: true, days: 0 };
+    return cachedRamadan;
+  }
+  for (let offset = 1; offset <= 370; offset += 1) {
+    const candidate = shiftedDate(today, offset);
+    const info = hijriCalendarMonth(candidate);
+    if (info && info.month === 9 && info.day === 1) {
+      cachedRamadan = { isRamadan: false, days: offset };
+      return cachedRamadan;
+    }
+  }
+  return cachedRamadan;
+}
+
+function renderDailyContent(today) {
+  $("#verseTranslation").textContent = t("quranTranslation");
+  const dayNumber = Math.floor(Date.UTC(today.year, today.month - 1, today.day) / 86400000);
+  const hadithIndex = Math.abs(dayNumber) % 2;
+  $("#hadithText").textContent = t(hadithIndex === 0 ? "hadithText1" : "hadithText2");
+  const hadithLink = $(".hadith-card .source-link");
+  hadithLink.href = hadithIndex === 0 ? "https://sunnah.com/bukhari/81/53" : "https://sunnah.com/muslim:597a";
+  hadithLink.querySelector("span").textContent = t(hadithIndex === 0 ? "hadithSource" : "hadithSourceMuslim");
+
+  if (!S.location || !todaySchedule) {
+    $("#ramadanTitle").textContent = t("awaitingLocation");
+    $("#sehriTime").textContent = "—";
+    $("#iftarTime").textContent = "—";
+    $("#fridayText").textContent = t("noLocation");
+    return;
+  }
+  const ramadan = ramadanCountdown(today);
+  $("#ramadanTitle").textContent = ramadan
+    ? (ramadan.isRamadan ? t("ramadanToday") : (ramadan.days === 1 ? t("ramadanTomorrow") : t("ramadanDays", { count: ramadan.days })))
+    : "—";
+  $("#sehriTime").textContent = formatTime(todaySchedule.fajr);
+  $("#iftarTime").textContent = formatTime(todaySchedule.maghrib);
+  const weekday = new Date(Date.UTC(today.year, today.month - 1, today.day)).getUTCDay();
+  const daysUntilFriday = (5 - weekday + 7) % 7;
+  $("#fridayText").textContent = daysUntilFriday === 0
+    ? t("fridayToday")
+    : t("fridayNext", { date: formatDateKey(shiftedDate(today, daysUntilFriday)) });
+}
+
+function buildPrayerContext(now) {
+  const date = localParts(now, S.location.timeZone);
+  const yesterdayDate = shiftedDate(date, -1);
+  const tomorrowDate = shiftedDate(date, 1);
+  const previous = scheduleFor(yesterdayDate);
+  const today = scheduleFor(date);
+  const tomorrow = scheduleFor(tomorrowDate);
+  todaySchedule = today;
+  return {
+    date,
+    today,
+    window: getPrayerWindow(
+      { isha: previous.isha },
+      today,
+      { fajr: tomorrow.fajr },
+      now
+    )
+  };
+}
+
+function renderCountdown(context, now) {
+  const info = context && context.window;
+  if (!S.location || !info || !info.next) {
+    $("#nextPrayerName").textContent = "—";
+    $("#nextPrayerTime").textContent = t("chooseLocation");
+    $("#countdown").textContent = "--:--:--";
+    $("#countdownRing").style.strokeDashoffset = String(CIRCUMFERENCE);
+    return;
+  }
+  const totalSeconds = Math.floor(info.remainingMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  $("#nextPrayerName").textContent = prayerLabel(info.next.key);
+  $("#nextPrayerTime").textContent = formatTime(info.next.time);
+  $("#countdown").textContent = pad(hours) + ":" + pad(minutes) + ":" + pad(seconds);
+  $("#countdownRing").style.strokeDashoffset = String(CIRCUMFERENCE * (1 - info.progress));
+  $("#countdown").setAttribute("aria-label", t("nextAt", {
+    prayer: prayerLabel(info.next.key), time: formatTime(info.next.time)
+  }));
+  if (todaySchedule) {
+    for (const row of $$(".prayer-row")) {
+      const key = row.dataset.prayerRow;
+      row.classList.toggle("is-next", key === info.next.key);
+      row.classList.toggle("is-past", key !== info.next.key && todaySchedule[key] && todaySchedule[key] <= now);
+    }
+  }
 }
 
 function notify(title, body, tag) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return false;
   try {
-    if (!("Notification" in window) || Notification.permission !== "granted") return;
-    const opt = { body, tag, icon: "./assets/logo/icon-192.png", vibrate: [200,100,200] };
-    if (navigator.serviceWorker && navigator.serviceWorker.controller)
-      navigator.serviceWorker.ready.then(r => r.showNotification(title, opt));
-    else new Notification(title, opt);
-  } catch(e) {}
-}
-
-function alertUser(k){
-  const body = S.pre>0 ? nm(k)+" fillon pas "+S.pre+" min ("+fmt(T0[k])+")" : "Hyri koha: "+nm(k)+" ("+fmt(T0[k])+")";
-  toast(body); 
-  vib([200,100,200]); 
-  notify("NamaziShqip",body,"nsq-"+k);
-  
-  if (S.ezanEnabled) {
-    const btnHero = $("#stopEzanHero");
-    if (btnHero) btnHero.style.display = "none";
-    ezanAudio.currentTime = 0;
-    ezanAudio.play().then(() => {
-      if (btnHero) btnHero.style.display = "inline-block";
-    }).catch(e => { console.log("Ezan nuk u luajt: ", e); beep(); });
-  } else {
-    beep();
-  }
-}
-
-ezanAudio.onended = () => {
-  const btnHero = $("#stopEzanHero");
-  if (btnHero) btnHero.style.display = "none";
-};
-
-let AC;
-function beep(){if(!S.sound)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();[0,.45,.9].forEach((o,i)=>{const x=AC.createOscillator(),g=AC.createGain();x.frequency.value=[523,659,784][i];g.gain.setValueAtTime(.0001,AC.currentTime+o);g.gain.exponentialRampToValueAtTime(.25,AC.currentTime+o+.05);g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+o+.9);x.connect(g).connect(AC.destination);x.start(AC.currentTime+o);x.stop(AC.currentTime+o+1);});}catch(e){}}
-let ttTimer;
-function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(ttTimer);ttTimer=setTimeout(()=>t.classList.remove("on"),6000);}
-function askPerm(){if(!("Notification"in window)){toast("Njoftimet nuk mbështeten.");return Promise.resolve(false);} if(Notification.permission=="granted")return Promise.resolve(true); return Notification.requestPermission().then(p=>p=="granted").catch(()=>false);}
-
-function cal() {
-  $("#mt").textContent=MON[mo.m-1]+" "+mo.y;
-  const days=new Date(Date.UTC(mo.y,mo.m,0)).getUTCDate();
-  let h="<tr><th>Dita</th>"+NAMES.map(n=>"<th>"+n[1]+"</th>").join("")+"</tr>";
-  for(let d=1;d<=days;d++){const t=dayTimes(mo.y,mo.m,d); h+=`<tr class="${mo.y+"-"+mo.m+"-"+d==DK?"today":""}"><td>${d} ${DAY[wday(mo.y,mo.m,d)].slice(2,5)}</td>`+NAMES.map(n=>"<td>"+fmt(t[n[0]])+"</td>").join("")+"</tr>";}
-  $("#tb").innerHTML=h;
-}
-
-/* ========================================================
-   BOSULLA (KIBLA)
-   ======================================================== */
-let head=null,QB=0,gotAbs=false;
-
-function qibla() {
-  const f1=S.lat*R, f2=KAABA[0]*R, dl=(KAABA[1]-S.lng)*R;
-  QB = fixA(Math.atan2(Math.sin(dl), Math.cos(f1)*Math.tan(f2) - Math.sin(f1)*Math.cos(dl))*D);
-  const a=Math.sin((f2-f1)/2)**2 + Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)**2, km=Math.round(12742*Math.asin(Math.sqrt(a)));
-  $("#qd").textContent = Math.round(QB) + "°";
-  $("#qi").textContent = S.label + " është " + km.toLocaleString("sq") + " km nga Qaba. Kibla: " + Math.round(QB) + "°.";
-  $("#qg").setAttribute("transform", "rotate(" + QB + " 100 100)"); 
-  drawQ();
-}
-
-function drawQ() {
-  $("#dial").style.transform = "rotate(" + (head == null ? 0 : -head) + "deg)";
-  const ok = head != null && Math.abs(((QB - head + 540) % 360) - 180) < 5;
-  $("#cmp").classList.toggle("ok", ok);
-  $("#qs").textContent = head == null ? "Busulla nuk është aktive." : (ok ? "Je në drejtim të Kibles." : "Kthe telefonin derisa shigjeta të jetë lart.");
-}
-
-function onOri(e) {
-  let h = null;
-  if (e.webkitCompassHeading != null) h = e.webkitCompassHeading;
-  else if (e.type === "deviceorientationabsolute" && e.alpha != null) { gotAbs = true; h = 360 - e.alpha; }
-  else if (e.alpha != null && !gotAbs) h = e.absolute ? 360 - e.alpha : null;
-  if (h == null) return;
-  head = fixA(h);
-  drawQ();
-}
-
-function startCompass() {
-  const on = () => {
-    window.addEventListener("deviceorientationabsolute", onOri, true);
-    window.addEventListener("deviceorientation", onOri, true);
-    toast("Busulla u aktivizua.");
-  };
-  if (!window.DeviceOrientationEvent) return toast("Pajisja nuk ka busull.");
-  if (typeof DeviceOrientationEvent.requestPermission === "function") {
-    DeviceOrientationEvent.requestPermission()
-      .then(st => st === "granted" ? on() : toast("Leja për busullën u refuzua."))
-      .catch(() => toast("Busulla nuk u aktivizua."));
-  } else on();
-}
-
-(()=>{
-  let s="";
-  for(let a=0; a<360; a+=10){
-    s += `<line x1="100" y1="${a%90?16:12}" x2="100" y2="${a%30?16:20}" transform="rotate(${a} 100 100)"/>`;
-  }
-  $("#ticks").innerHTML=s;
-})();
-
-/* ========================================================
-   TASBIHU
-   ======================================================== */
-function tsb(){const t=S.ts; $("#dh").innerHTML=DH.map((x,i)=>`<button class="chip ${t.d==i?"on":""}" data-d="${i}">${x[0]}</button>`).join(""); $("#tg").innerHTML=TG.map(g=>`<button class="chip ${t.t==g?"on":""}" data-g="${g}">${g||"∞"}</button>`).join(""); $("#ar").textContent=DH[t.d][1]; $("#tc").textContent=t.n; $("#tt").textContent=t.t?"nga "+t.t:"pa kufi"; $("#tr").style.strokeDashoffset=t.t?603*(1-Math.min(1,t.n/t.t)):603; $("#tot").textContent="Gjithsej: "+t.total.toLocaleString("sq")+" herë";}
-function tap(){const t=S.ts;if(t.t&&t.n>=t.t)t.n=0;t.n++;t.total++;save();tsb();if(t.t&&t.n==t.t){vib([80,50,80]);toast("U plotësua: "+t.t+" herë");}else vib(12);}
-
-let RES=[], CC="";
-const RESC=(()=>{const dn=new Intl.DisplayNames(["sq"],{type:"region"}),skip=["ZZ","EU","UN","EZ","QO","XA","XB"],a=[]; for(let i=65;i<91;i++)for(let j=65;j<91;j++){const c=String.fromCharCode(i,j);if(skip.includes(c))continue;try{const n=dn.of(c);if(n&&n!=c)a.push([c,n])}catch(e){}} if(!a.some(x=>x[0]=="XK"))a.push(["XK","Kosovë"]); return a.sort((x,y)=>x[1].localeCompare(y[1],"sq"));})();
-
-function theme() { if(S.theme) document.documentElement.setAttribute("data-theme",S.theme); else document.documentElement.removeAttribute("data-theme"); }
-
-function fillSettings() {
-  $("#sc").innerHTML=(S.city=="custom"?`<option value="custom">${esc(S.label)}</option>`:"")+CITIES.map((c,i)=>`<option value="${i}">${c.name}</option>`).join("");
-  $("#sco").innerHTML='<option value="">Zgjidh shtetin</option>'+RESC.map(c=>`<option value="${c[0]}">${esc(c[1])}</option>`).join("");
-  $("#sm").innerHTML=Object.entries(METHODS).map(([k,v])=>`<option value="${k}">${v[0]}</option>`).join("");
-  $("#sc").value=S.city; $("#sco").value=CC; $("#sm").value=S.method; $("#sa").value=S.asr; $("#sp").value=S.pre; $("#ss").value=S.sound; $("#st").value=S.theme;
-  if($("#sadj"))$("#sadj").value=S.adj;
-  
-  const btnEzan = $("#ezanBtn");
-  if(btnEzan) {
-    if(S.ezanEnabled) {
-      btnEzan.textContent = "🔴 Ndal Ezanin";
-      btnEzan.style.background = "#ef4444";
-      btnEzan.style.color = "#fff";
+    const options = {
+      body,
+      tag,
+      icon: "./assets/logo/icon-192.png",
+      badge: "./assets/logo/icon-192.png"
+    };
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.ready.then(registration => registration.showNotification(title, options)).catch(() => {});
     } else {
-      btnEzan.textContent = "🎵 Aktivizo Ezanin";
-      btnEzan.style.background = "#eab308";
-      btnEzan.style.color = "#000";
+      new Notification(title, options);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const azanAudio = new Audio("./ezani.mp3");
+azanAudio.preload = "none";
+azanAudio.addEventListener("ended", () => showToast(t("audioStopped")));
+
+async function playAzan(isPreview = false) {
+  azanAudio.pause();
+  azanAudio.currentTime = 0;
+  azanAudio.volume = clamp(Number(S.azan.volume), 0, 1);
+  try {
+    await azanAudio.play();
+    showToast(t(isPreview ? "azanPlaying" : "azanPlaying"));
+  } catch {
+    showToast(t("azanBlocked"));
+  }
+}
+
+function firePrayerAlert(key, dateKey, minutesBefore) {
+  const title = t("notificationTitle");
+  const body = minutesBefore
+    ? t("prayerReminder", { prayer: prayerLabel(key), minutes: minutesBefore, time: formatTime(todaySchedule[key]) })
+    : t("prayerDue", { prayer: prayerLabel(key) });
+  showToast(body);
+  const sent = notify(title, body, "namazishqip-" + dateKey + "-" + key + "-" + minutesBefore);
+  if (sent) vib([140, 70, 140]);
+  if (S.azan.enabled && S.azan.prayers[key]) playAzan();
+}
+
+function checkPrayerAlerts(now, context) {
+  if (!S.location || !todaySchedule || !S.notifications.enabled) return;
+  const keyDate = dayKey(context.date);
+  for (const key of OBLIGATORY_KEYS) {
+    if (!S.notifications.prayers[key]) continue;
+    const before = clamp(Number(S.notifications.before) || 0, 0, 15);
+    const target = todaySchedule[key].getTime() - before * 60000;
+    const id = keyDate + "|" + key + "|" + before;
+    const drift = now.getTime() - target;
+    if (drift >= 0 && drift < 90000 && !firedReminders.has(id)) {
+      firedReminders.add(id);
+      firePrayerAlert(key, keyDate, before);
     }
   }
-
-  const ns = $("#notifSwitch");
-  if(ns) ns.checked = Object.values(S.notify).some(v => v === 1) && ("Notification" in window) && Notification.permission === "granted";
 }
 
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
-  document.querySelectorAll("nav button,.view").forEach(x=>x.classList.remove("on"));
-  b.classList.add("on"); $("#v"+b.dataset.v).classList.add("on"); scrollTo(0,0); vib(8);
-  history.replaceState(null,"","#v"+b.dataset.v);
-});
-$("#locBtn").onclick = () => document.querySelector('nav button[data-v="4"]').click();
-$("#list").onclick = e => {
-  const c=e.target.closest("[data-c]");
-  if(c){const k=c.dataset.c,d=S.done[DK]||(S.done[DK]={}); if(d[k])delete d[k]; else d[k]=1; save(); c.classList.toggle("on",!!d[k]); prog(); vib(15); return;}
-};
-$("#pm").onclick = () => { mo = mo.m==1?{y:mo.y-1,m:12}:{y:mo.y,m:mo.m-1}; cal(); };
-$("#nm").onclick = () => { mo = mo.m==12?{y:mo.y+1,m:1}:{y:mo.y,m:mo.m+1}; cal(); };
-$("#cpBtn").onclick = startCompass;
-$("#tap").onclick = tap;
-$("#trs").onclick = () => { S.ts.n=0; save(); tsb(); };
-$("#dh").onclick = e => { const b=e.target.closest("[data-d]"); if(b){S.ts.d=+b.dataset.d; S.ts.n=0; save(); tsb();} };
-$("#tg").onclick = e => { const b=e.target.closest("[data-g]"); if(b){S.ts.t=+b.dataset.g; S.ts.n=0; save(); tsb();} };
-$("#sc").onchange = e => { if(e.target.value=="custom")return; const c=CITIES[+e.target.value]; S.city=+e.target.value; S.lat=c.lat; S.lng=c.lng; S.tz=c.tz; S.label=c.name; S.kosovo=c.kosovo; S.gps=false; fired={}; mo=null; save(); fillSettings(); updateTimesFromAPI(); };
-
-$("#sm").onchange = e => { S.method=e.target.value; save(); updateTimesFromAPI(); };
-$("#sa").onchange = e => { S.asr=+e.target.value; save(); updateTimesFromAPI(); };
-$("#sp").onchange = e => { S.pre=+e.target.value; save(); };
-$("#ss").onchange = e => { S.sound=+e.target.value; save(); beep(); };
-$("#st").onchange = e => { S.theme=e.target.value; save(); theme(); };
-if($("#sadj"))$("#sadj").onchange = e => { S.adj=+e.target.value; save(); render(); };
-
-const notifSwitch = $("#notifSwitch");
-if(notifSwitch) {
-  notifSwitch.onchange = async e => {
-    if(e.target.checked) {
-      const ok = await askPerm();
-      if(ok) { for (const k of FIVE) S.notify[k] = 1; toast("Njoftimet u aktivizuan!"); }
-      else { e.target.checked = false; toast("Duhet të lejoni njoftimet në shfletues."); }
-    } else {
-      for (const k of FIVE) S.notify[k] = 0;
-      toast("Njoftimet u çaktivizuan.");
-    }
-    save();
-  };
+function updateNotificationStatus() {
+  const status = $("#notificationStatus");
+  if (!("Notification" in window)) status.textContent = t("permissionUnsupported");
+  else if (Notification.permission === "granted") status.textContent = t("permissionGranted");
+  else if (Notification.permission === "denied") status.textContent = t("permissionDenied");
+  else status.textContent = t("permissionDefault");
 }
 
-$("#test").onclick = () => { askPerm().then(()=>{const b="Ky është një njoftim prove."; toast(b); beep(); notify("NamaziShqip",b,"nsq-test");}); };
-
-/* ========================================================
-   LOKACIONI (GPS + qyteti me reverse geocoding)
-   ======================================================== */
-function updateLocation() {
-  if(!navigator.geolocation) return toast("GPS nuk mbështetet në këtë pajisje.");
-  navigator.geolocation.getCurrentPosition(
-    async p => {
-      S.city = "custom"; S.gps = true;
-      S.lat = p.coords.latitude; S.lng = p.coords.longitude;
-      S.tz = devTz(); S.label = "Vendndodhja ime";
-      fired = {}; mo = null;
-      save(); fillSettings(); updateTimesFromAPI();
-      const row = $("#locPermissionRow"); if (row) row.style.display = "none";
-
-      try {
-        const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${S.lat}&longitude=${S.lng}&localityLanguage=sq`);
-        const data = await res.json();
-        const cityName = data.city || data.locality || data.principalSubdivision;
-        if (cityName) { S.label = cityName; $("#q").value = cityName; }
-        if (data.countryCode) { CC = data.countryCode; S.kosovo = (CC === "XK"); }
-        save(); fillSettings(); render();
-        toast("Vendndodhja u përditësua: " + S.label);
-      } catch (e) {
-        toast("Vendndodhja u përditësua.");
+async function requestNotificationPermission() {
+  if (!("Notification" in window)) {
+    showToast(t("permissionUnsupported"));
+    updateNotificationStatus();
+    return false;
+  }
+  try {
+    const permission = await Notification.requestPermission();
+    updateNotificationStatus();
+    if (permission === "granted") {
+      S.notifications.enabled = true;
+      if (!OBLIGATORY_KEYS.some(key => S.notifications.prayers[key])) {
+        for (const key of OBLIGATORY_KEYS) S.notifications.prayers[key] = true;
       }
-    },
-    err => { toast("Nuk u mor vendndodhja. Lejo lokacionin te cilësimet e telefonit."); console.log(err); },
-    { timeout: 10000, enableHighAccuracy: true }
-  );
-}
-$("#geo").onclick = updateLocation;
-if ($("#requestLocPerm")) $("#requestLocPerm").onclick = updateLocation;
-
-if (navigator.permissions && navigator.permissions.query) {
-  navigator.permissions.query({ name: "geolocation" }).then(r => {
-    const row = $("#locPermissionRow");
-    if (row) row.style.display = r.state === "granted" ? "none" : "flex";
-    if (r.state === "granted" && (S.gps || FIRST)) updateLocation();
-  }).catch(() => {});
-}
-
-/* ========================================================
-   EZANI (butoni)
-   ======================================================== */
-$("#ezanBtn").onclick = () => {
-  if (!S.ezanEnabled) {
-    ezanAudio.volume = 1;
-    ezanAudio.play().then(() => {
-      ezanAudio.pause();
-      ezanAudio.currentTime = 0;
-      S.ezanEnabled = true;
+      fillToggles();
       save();
-      fillSettings();
-      toast("Ezani u aktivizua! Do të luajë kur të hyjë koha e namazit.");
-    }).catch((e) => {
-      toast("Gabim: Skedari ezani.mp3 nuk u gjet ose shfletuesi e bllokoi.");
-      console.log(e);
-    });
+      showToast(t("notificationsEnabled"));
+      return true;
+    }
+    showToast(permission === "denied" ? t("permissionDenied") : t("notificationsNeedPermission"));
+  } catch {
+    showToast(t("permissionUnsupported"));
+  }
+  return false;
+}
+
+function updateConnectionStatus() {
+  const isOnline = navigator.onLine;
+  const chip = $("#connectionStatus");
+  chip.textContent = isOnline ? t("online") : t("offline");
+  chip.classList.toggle("is-offline", !isOnline);
+  $("#offlineStatus").textContent = isOnline ? t("online") : t("offline");
+}
+
+function renderQibla() {
+  if (!S.location) {
+    $("#qiblaBearing").textContent = "—°";
+    $("#qiblaDistance").textContent = "— km";
+    $("#qiblaSummary").textContent = t("noLocation");
+    $("#compassStatus").textContent = "";
+    $("#qiblaNeedle").setAttribute("transform", "rotate(0 120 120)");
+    $("#compassRose").style.transform = "rotate(0deg)";
+    return;
+  }
+  const info = getQibla(S.location.latitude, S.location.longitude);
+  const bearing = ((info.bearing % 360) + 360) % 360;
+  $("#qiblaBearing").textContent = Math.round(bearing) + "°";
+  $("#qiblaDistance").textContent = Math.round(info.distanceKm).toLocaleString(localeFor(S.language)) + " km";
+  $("#qiblaSummary").textContent = S.language === "en"
+    ? "From " + S.location.label + ", face " + Math.round(bearing) + "° clockwise from north."
+    : S.language === "de"
+      ? "Von " + S.location.label + " aus liegt die Richtung " + Math.round(bearing) + "° im Uhrzeigersinn ab Norden."
+      : "Nga " + S.location.label + ", drejtimi është " + Math.round(bearing) + "° nga veriu në drejtim të akrepave të orës.";
+  $("#qiblaNeedle").setAttribute("transform", "rotate(" + bearing + " 120 120)");
+  drawCompass();
+}
+
+function drawCompass() {
+  $("#compassRose").style.transform = "rotate(" + (compassHeading == null ? 0 : -compassHeading) + "deg)";
+  $("#compassStatus").textContent = compassHeading == null ? t("compassStatic") : t("compassActive");
+}
+
+function screenOrientationAngle() {
+  return (screen.orientation && Number.isFinite(screen.orientation.angle))
+    ? screen.orientation.angle
+    : (Number.isFinite(window.orientation) ? window.orientation : 0);
+}
+
+function handleOrientation(event) {
+  let heading = null;
+  if (Number.isFinite(event.webkitCompassHeading)) {
+    heading = event.webkitCompassHeading;
+  } else if (event.type === "deviceorientationabsolute" && Number.isFinite(event.alpha)) {
+    absoluteHeadingSeen = true;
+    heading = 360 - event.alpha;
+  } else if (!absoluteHeadingSeen && event.absolute && Number.isFinite(event.alpha)) {
+    heading = 360 - event.alpha;
+  }
+  if (heading == null) return;
+  compassHeading = (heading + screenOrientationAngle() + 360) % 360;
+  drawCompass();
+}
+
+async function activateCompass() {
+  if (!("DeviceOrientationEvent" in window)) {
+    showToast(t("compassUnavailable"));
+    return;
+  }
+  try {
+    if (typeof DeviceOrientationEvent.requestPermission === "function") {
+      const permission = await DeviceOrientationEvent.requestPermission();
+      if (permission !== "granted") {
+        showToast(t("compassDenied"));
+        return;
+      }
+    }
+    window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+    window.addEventListener("deviceorientation", handleOrientation, true);
+    showToast(t("compassPermission"));
+  } catch {
+    showToast(t("compassDenied"));
+  }
+}
+
+const DHIKR = [
+  { label: "Subhanallah", arabic: "سُبْحَانَ ٱللَّٰهِ" },
+  { label: "Elhamdulilah", arabic: "ٱلْحَمْدُ لِلَّٰهِ" },
+  { label: "Allahu Ekber", arabic: "ٱللَّٰهُ أَكْبَرُ" },
+  { label: "La ilahe il-lAllah", arabic: "لَا إِلَٰهَ إِلَّا ٱللَّٰهُ" }
+];
+const TARGETS = [33, 99, 100];
+
+function renderTasbih() {
+  const current = S.tasbih;
+  $("#dhikrChoices").innerHTML = DHIKR.map((item, index) =>
+    '<button class="choice-chip' + (index === current.dhikr ? " is-active" : "") +
+    '" type="button" data-dhikr="' + index + '" aria-pressed="' + (index === current.dhikr) + '">' +
+    safeText(item.label) + "</button>").join("");
+  $("#dhikrArabic").textContent = DHIKR[current.dhikr]?.arabic || "";
+  $("#tasbihCount").textContent = current.count;
+  $("#tasbihTargetLabel").textContent = current.count + " / " + current.target;
+  $("#tasbihTotal").textContent = t("tasbihTotal", { count: Number(current.total || 0).toLocaleString(localeFor(S.language)) });
+  $("#tasbihProgress").style.strokeDashoffset = String(CIRCUMFERENCE * (1 - clamp(current.count / Math.max(1, current.target), 0, 1)));
+  $("#targetOptions").innerHTML = TARGETS.map(target =>
+    '<button class="choice-chip' + (target === current.target ? " is-active" : "") +
+    '" type="button" data-target="' + target + '" aria-pressed="' + (target === current.target) + '">' +
+    target + "</button>").join("");
+  $("#customTarget").value = TARGETS.includes(current.target) ? "" : current.target;
+}
+
+function renderSettings() {
+  $("#methodSelect").value = S.method;
+  $("#madhabSelect").value = S.madhab;
+  $("#timeFormat").value = S.timeFormat;
+  $("#languageSelect").value = S.language;
+  $("#themeSelect").value = S.theme;
+  $("#reminderMinutes").value = String(S.notifications.before);
+  $("#azanEnabled").checked = S.azan.enabled;
+  $("#azanVolume").value = String(S.azan.volume);
+  $("#adjustmentList").innerHTML = PRAYER_KEYS.map((key, index) =>
+    '<div class="adjustment-row"><label for="adjustment-' + key + '">' +
+    safeText(prayerLabel(key)) + "</label><input id=\"adjustment-" + key +
+    '" type="number" inputmode="numeric" min="-60" max="60" step="1" value="' +
+    clamp(Number(S.adjustments[key]) || 0, -60, 60) + '" data-adjustment="' + key +
+    '" aria-label="' + safeText(prayerLabel(key)) + '"></div>').join("");
+  fillToggles();
+  renderLocation();
+  updateNotificationStatus();
+}
+
+function renderCalendar() {
+  const table = $("#calendarTable");
+  if (!S.location) {
+    table.innerHTML = '<tbody><tr><td colspan="8">' + safeText(t("noCalendarLocation")) + "</td></tr></tbody>";
+    $("#monthTitle").textContent = t("monthlyCalendar");
+    return;
+  }
+  const nowParts = localParts(new Date(), S.location.timeZone);
+  if (!monthView) monthView = { year: nowParts.year, month: nowParts.month };
+  const year = monthView.year;
+  const month = monthView.month;
+  const monthDate = new Date(Date.UTC(year, month - 1, 15, 12));
+  $("#monthTitle").textContent = new Intl.DateTimeFormat(localeFor(S.language), {
+    timeZone: "UTC", month: "long", year: "numeric"
+  }).format(monthDate);
+  const headers = t("calendarHeaders");
+  const header = "<thead><tr>" + headers.map(text => "<th scope=\"col\">" + safeText(text) + "</th>").join("") + "</tr></thead>";
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const todayKey = dayKey(nowParts);
+  let rows = "";
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = { year, month, day };
+    const schedule = scheduleFor(date);
+    const hijri = hijriParts(date);
+    const current = dayKey(date) === todayKey;
+    const dateText = localizedDate(date, { weekday: "short", day: "2-digit", month: "2-digit" });
+    const values = PRAYER_KEYS.map(key => "<td>" + safeText(formatTime(schedule[key])) + "</td>").join("");
+    rows += '<tr' + (current ? ' class="is-today"' : "") + "><td>" + safeText(dateText) +
+      "</td><td class=\"hijri-cell\">" + safeText(hijri ? hijri.label : "—") + "</td>" + values + "</tr>";
+  }
+  table.innerHTML = header + "<tbody>" + rows + "</tbody>";
+}
+
+function renderAll() {
+  const now = new Date();
+  const zone = S.location?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const date = localParts(now, zone);
+  currentDateKey = dayKey(date);
+  renderHeader(now, date);
+  renderLocation();
+  renderSettings();
+  if (S.location) {
+    try {
+      const context = buildPrayerContext(now);
+      renderPrayerRows(now, context.window);
+      renderCountdown(context, now);
+      renderDailyContent(context.date);
+      renderQibla();
+      setProgress();
+    } catch (error) {
+      console.error("Prayer schedule could not be calculated.", error);
+      todaySchedule = null;
+      $("#prayerList").innerHTML = '<p class="small-note">' + safeText(t("calculationError")) + "</p>";
+      $("#nextPrayerName").textContent = "—";
+      $("#countdown").textContent = "--:--:--";
+      $("#scheduleNote").textContent = t("calculationError");
+      renderQibla();
+      renderDailyContent(date);
+    }
   } else {
-    stopEzan();
-    S.ezanEnabled = false;
+    todaySchedule = null;
+    renderPrayerRows(now, null);
+    renderCountdown(null, now);
+    renderDailyContent(date);
+    renderQibla();
+    setProgress();
+  }
+  renderCalendar();
+  updateConnectionStatus();
+  updateNotificationStatus();
+  $("#mainContent").setAttribute("aria-busy", "false");
+  if (!saveAvailable) $("#locationMessage").textContent = t("saveError");
+}
+
+function tick() {
+  const now = new Date();
+  const timeZone = S.location?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const localDate = localParts(now, timeZone);
+  const key = dayKey(localDate);
+  $("#localClock").textContent = new Intl.DateTimeFormat(localeFor(S.language), {
+    timeZone,
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hourCycle: S.timeFormat === "12" ? "h12" : "h23"
+  }).format(now);
+  if (key !== currentDateKey) {
+    renderAll();
+    return;
+  }
+  if (!S.location) return;
+  try {
+    const context = buildPrayerContext(now);
+    renderCountdown(context, now);
+    checkPrayerAlerts(now, context);
+  } catch (error) {
+    console.error("Countdown update failed.", error);
+    $("#countdown").textContent = "--:--:--";
+  }
+}
+
+function updateSchedule() {
+  scheduleCache.clear();
+  firedReminders = new Set();
+  renderAll();
+  tick();
+}
+
+function storeLocation(location) {
+  const result = validLocation(location);
+  if (!result) {
+    showToast(t("calculationError"));
+    return;
+  }
+  S.location = result;
+  $("#appLoadingStatus").hidden = true;
+  $("#mainContent").setAttribute("aria-busy", "false");
+  monthView = null;
+  save();
+  $("#locationMessage").textContent = t("selectedLocation");
+  renderAll();
+  tick();
+  showToast(t("selectedLocation"));
+}
+
+function setView(viewName) {
+  const allowed = new Set(["home", "calendar", "qibla", "tasbih", "settings"]);
+  const key = allowed.has(viewName) ? viewName : "home";
+  for (const section of $$(".view")) {
+    const active = section.id === "view-" + key;
+    section.classList.toggle("is-active", active);
+    section.hidden = !active;
+  }
+  for (const button of $$(".nav-item")) {
+    const active = button.dataset.view === key;
+    button.classList.toggle("is-active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  }
+  if (key === "calendar") renderCalendar();
+  if (key === "settings") renderSettings();
+  history.replaceState(null, "", "#" + key);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function updateCountryFromLocation(location) {
+  if (location.countryCode) $("#countrySelect").value = location.countryCode;
+}
+
+function getFeatureCity(feature) {
+  const properties = feature && feature.properties ? feature.properties : {};
+  const name = properties.name || properties.city || properties.locality || properties.district || properties.county;
+  const country = properties.country || "";
+  return { name: name || country || t("myLocation"), country, countryCode: (properties.countrycode || "").toUpperCase() };
+}
+
+function displayCityResults(features) {
+  const root = $("#locationResults");
+  root.replaceChildren();
+  if (!features.length) {
+    root.textContent = t("noCityResults");
+    return;
+  }
+  for (const feature of features.slice(0, 7)) {
+    const city = getFeatureCity(feature);
+    const coordinates = feature.geometry && feature.geometry.coordinates;
+    if (!Array.isArray(coordinates) || coordinates.length < 2) continue;
+    const latitude = Number(coordinates[1]);
+    const longitude = Number(coordinates[0]);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
+    let zone;
+    try { zone = timezoneForCoordinates(latitude, longitude); } catch { continue; }
+    const button = document.createElement("button");
+    button.className = "location-result";
+    button.type = "button";
+    button.setAttribute("role", "option");
+    button.innerHTML = "<span><b>" + safeText(city.name) + "</b><small>" +
+      safeText([city.country, zone].filter(Boolean).join(" · ")) + "</small></span><span aria-hidden=\"true\">→</span>";
+    button.addEventListener("click", () => {
+      storeLocation({
+        latitude, longitude, timeZone: zone, label: city.name, country: city.country,
+        countryCode: city.countryCode, source: "search"
+      });
+      updateCountryFromLocation(S.location);
+      root.replaceChildren();
+    });
+    root.append(button);
+  }
+  if (!root.childElementCount) root.textContent = t("noCityResults");
+}
+
+async function searchCity() {
+  const cityText = $("#citySearch").value.trim();
+  if (!cityText) {
+    $("#locationMessage").textContent = t("searchForCity");
+    return;
+  }
+  const selectedCountry = $("#countrySelect").value;
+  const query = [cityText, selectedCountry ? countryName(selectedCountry) : ""].filter(Boolean).join(", ");
+  const button = $("#searchCityButton");
+  button.disabled = true;
+  $("#locationMessage").textContent = t("loading");
+  if (searchAbort) searchAbort.abort();
+  searchAbort = new AbortController();
+  try {
+    const url = new URL("https://photon.komoot.io/api/");
+    url.searchParams.set("q", query);
+    url.searchParams.set("limit", "7");
+    url.searchParams.set("lang", S.language);
+    const response = await fetch(url, { signal: searchAbort.signal });
+    if (!response.ok) throw new Error("The location search service returned an error.");
+    const data = await response.json();
+    displayCityResults(Array.isArray(data.features) ? data.features : []);
+    $("#locationMessage").textContent = "";
+  } catch (error) {
+    if (error.name !== "AbortError") {
+      $("#locationResults").replaceChildren();
+      $("#locationMessage").textContent = t("searchError");
+    }
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function requestGps(isAutomatic = false) {
+  if (!navigator.geolocation) {
+    $("#appLoadingStatus").hidden = true;
+    $("#locationMessage").textContent = t("gpsUnavailable");
+    if (!isAutomatic) showToast(t("gpsUnavailable"));
+    return;
+  }
+  $("#appLoadingStatus").textContent = t("loadingLocation");
+  $("#appLoadingStatus").hidden = false;
+  $("#mainContent").setAttribute("aria-busy", "true");
+  $("#locationMessage").textContent = t("loading");
+  navigator.geolocation.getCurrentPosition(position => {
+    const latitude = position.coords.latitude;
+    const longitude = position.coords.longitude;
+    let timeZone;
+    try { timeZone = timezoneForCoordinates(latitude, longitude); }
+    catch {
+      $("#appLoadingStatus").hidden = true;
+      $("#mainContent").setAttribute("aria-busy", "false");
+      $("#locationMessage").textContent = t("calculationError");
+      return;
+    }
+    storeLocation({
+      latitude,
+      longitude,
+      timeZone,
+      label: "",
+      source: "gps",
+      named: false
+    });
+    $("#locationMessage").textContent = t("gpsNameReady");
+  }, error => {
+    $("#appLoadingStatus").hidden = true;
+    $("#mainContent").setAttribute("aria-busy", "false");
+    const message = error.code === 3 ? t("gpsTimeout") : t("gpsDenied");
+    $("#locationMessage").textContent = message;
+    if (!isAutomatic) showToast(message);
+  }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 });
+}
+
+async function identifyGpsCity() {
+  if (!S.location || S.location.source !== "gps") return;
+  if (!window.confirm(t("gpsPrivacyConfirm"))) return;
+  $("#locationMessage").textContent = t("loading");
+  try {
+    const url = new URL("https://photon.komoot.io/reverse");
+    url.searchParams.set("lat", String(S.location.latitude));
+    url.searchParams.set("lon", String(S.location.longitude));
+    url.searchParams.set("lang", S.language);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Reverse geocoding failed.");
+    const data = await response.json();
+    const feature = data.features && data.features[0];
+    if (!feature) throw new Error("No city was returned.");
+    const city = getFeatureCity(feature);
+    S.location.label = city.name;
+    S.location.country = city.country;
+    S.location.countryCode = city.countryCode;
+    S.location.named = true;
     save();
-    fillSettings();
-    toast("Ezani u çaktivizua.");
+    updateCountryFromLocation(S.location);
+    renderAll();
+    $("#locationMessage").textContent = t("selectedLocation");
+  } catch {
+    $("#locationMessage").textContent = t("gpsNameError");
   }
-};
-if ($("#stopEzanHero")) $("#stopEzanHero").onclick = stopEzan;
+}
 
-/* ========================================================
-   EVENTE TË PËRBASHKËTA
-   ======================================================== */
-document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
-addEventListener("online", () => { for (const k in apiTried) delete apiTried[k]; render(); });
+function clearLocation() {
+  S.location = null;
+  monthView = null;
+  scheduleCache.clear();
+  save();
+  renderAll();
+  $("#locationMessage").textContent = t("locationCleared");
+}
 
-const unlockAudio = () => {
-  try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === "suspended") AC.resume(); } catch(e) {}
-  if (S.ezanEnabled) {
-    ezanAudio.muted = true;
-    ezanAudio.play().then(() => { ezanAudio.pause(); ezanAudio.currentTime = 0; ezanAudio.muted = false; })
-      .catch(() => { ezanAudio.muted = false; });
+function changeMonth(amount) {
+  if (!S.location) return;
+  if (!monthView) {
+    const date = localParts(new Date(), S.location.timeZone);
+    monthView = { year: date.year, month: date.month };
   }
-  removeEventListener("pointerdown", unlockAudio, true);
-};
-addEventListener("pointerdown", unlockAudio, true);
+  const updated = new Date(Date.UTC(monthView.year, monthView.month - 1 + amount, 1, 12));
+  monthView = { year: updated.getUTCFullYear(), month: updated.getUTCMonth() + 1 };
+  renderCalendar();
+}
 
-theme(); 
-fillSettings(); 
-tsb(); 
-render(); 
-setInterval(tick, 1000);
+function csvCell(value) {
+  return '"' + String(value).replace(/"/g, '""') + '"';
+}
+
+function exportCalendar() {
+  if (!S.location || !monthView) {
+    showToast(t("noCalendarLocation"));
+    return;
+  }
+  const headers = t("calendarHeaders");
+  const rows = [headers.map(csvCell).join(",")];
+  const total = new Date(Date.UTC(monthView.year, monthView.month, 0)).getUTCDate();
+  for (let day = 1; day <= total; day += 1) {
+    const date = { year: monthView.year, month: monthView.month, day };
+    const times = scheduleFor(date);
+    const hijri = hijriParts(date);
+    rows.push([
+      localizedDate(date, { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }),
+      hijri ? hijri.label : "",
+      ...PRAYER_KEYS.map(key => formatTime(times[key]))
+    ].map(csvCell).join(","));
+  }
+  const blob = new Blob(["\ufeff" + rows.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const anchor = document.createElement("a");
+  anchor.href = URL.createObjectURL(blob);
+  anchor.download = "namazishqip-" + monthView.year + "-" + pad(monthView.month) + ".csv";
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(anchor.href), 1000);
+  showToast(t("csvDownloaded"));
+}
+
+function setTasbihTarget(value) {
+  const target = parseInt(value, 10);
+  if (!Number.isFinite(target) || target < 1 || target > 10000) {
+    $("#customTarget").value = "";
+    showToast(t("customTarget") + ": 1–10000");
+    return;
+  }
+  S.tasbih.target = target;
+  S.tasbih.count = 0;
+  save();
+  renderTasbih();
+}
+
+function tapTasbih() {
+  if (S.tasbih.count >= S.tasbih.target) S.tasbih.count = 0;
+  S.tasbih.count += 1;
+  S.tasbih.total += 1;
+  save();
+  renderTasbih();
+  vib(S.tasbih.count === S.tasbih.target ? [90, 45, 90] : 12);
+  if (S.tasbih.count === S.tasbih.target) showToast(t("tasbihComplete", { target: S.tasbih.target }));
+}
+
+function markPrayer(key) {
+  const now = new Date();
+  const date = localParts(now, S.location.timeZone);
+  const keyDate = dayKey(date);
+  if (!S.checked[keyDate]) S.checked[keyDate] = {};
+  S.checked[keyDate][key] = !S.checked[keyDate][key];
+  save();
+  renderPrayerRows(now, buildPrayerContext(now).window);
+  setProgress();
+  vib(15);
+}
+
+function onNotificationToggle(event) {
+  const key = event.target.dataset.notificationPrayer;
+  if (!key) return;
+  S.notifications.prayers[key] = event.target.checked;
+  S.notifications.enabled = OBLIGATORY_KEYS.some(prayer => S.notifications.prayers[prayer]);
+  save();
+}
+
+function onAzanToggle(event) {
+  const key = event.target.dataset.azanPrayer;
+  if (!key) return;
+  S.azan.prayers[key] = event.target.checked;
+  save();
+}
+
+function setLanguage(language) {
+  if (!["sq", "en", "de"].includes(language)) return;
+  S.language = language;
+  save();
+  translateStatic();
+  renderAll();
+  renderTasbih();
+  activateTheme();
+}
+
+function setTheme(theme) {
+  S.theme = ["system", "light", "dark"].includes(theme) ? theme : "system";
+  save();
+  activateTheme();
+}
+
+function setInstallButtonVisibility() {
+  const standalone = window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+  $("#installButton").hidden = !deferredInstallPrompt || standalone;
+  $("#installButtonSettings").hidden = standalone;
+}
+
+async function promptInstall() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    try {
+      const choice = await deferredInstallPrompt.userChoice;
+      if (choice.outcome === "accepted") showToast(t("installed"));
+    } catch {}
+    deferredInstallPrompt = null;
+    setInstallButtonVisibility();
+  } else {
+    showToast(t("installUnavailable"));
+  }
+}
+
+function updateNotificationServiceWorker() {
+  if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
+  const alreadyControlled = !!navigator.serviceWorker.controller;
+  if (alreadyControlled) {
+    navigator.serviceWorker.addEventListener("controllerchange", () => window.location.reload(), { once: true });
+  }
+  navigator.serviceWorker.register("./sw.js", { scope: "./", updateViaCache: "none" })
+    .then(registration => {
+      if (registration.waiting) registration.waiting.postMessage({ type: "SKIP_WAITING" });
+      registration.update().catch(() => {});
+      $("#offlineStatus").textContent = navigator.onLine ? t("online") : t("offline");
+    })
+    .catch(error => console.warn("Service worker registration failed.", error));
+}
+
+function attachEvents() {
+  for (const button of $$(".nav-item")) button.addEventListener("click", () => setView(button.dataset.view));
+  $("#locBtn").addEventListener("click", () => setView("settings"));
+  $("#methodSelect").addEventListener("change", event => {
+    S.method = event.target.value;
+    save();
+    updateSchedule();
+  });
+  $("#madhabSelect").addEventListener("change", event => {
+    S.madhab = event.target.value === "hanafi" ? "hanafi" : "shafi";
+    save();
+    updateSchedule();
+  });
+  $("#timeFormat").addEventListener("change", event => {
+    S.timeFormat = event.target.value === "12" ? "12" : "24";
+    save();
+    renderAll();
+  });
+  $("#themeSelect").addEventListener("change", event => setTheme(event.target.value));
+  $("#languageSelect").addEventListener("change", event => setLanguage(event.target.value));
+  $("#adjustmentList").addEventListener("change", event => {
+    const key = event.target.dataset.adjustment;
+    if (!key) return;
+    const value = Number(event.target.value);
+    S.adjustments[key] = Number.isFinite(value) ? clamp(Math.round(value), -60, 60) : 0;
+    event.target.value = String(S.adjustments[key]);
+    save();
+    updateSchedule();
+  });
+  $("#prayerList").addEventListener("click", event => {
+    const button = event.target.closest("[data-check-prayer]");
+    if (button && S.location) markPrayer(button.dataset.checkPrayer);
+  });
+  $("#previousMonth").addEventListener("click", () => changeMonth(-1));
+  $("#nextMonth").addEventListener("click", () => changeMonth(1));
+  $("#printCalendar").addEventListener("click", () => {
+    document.body.classList.add("print-calendar");
+    window.print();
+  });
+  window.addEventListener("afterprint", () => document.body.classList.remove("print-calendar"));
+  $("#exportCalendar").addEventListener("click", exportCalendar);
+  $("#activateCompass").addEventListener("click", activateCompass);
+  $("#countrySelect").addEventListener("change", () => {
+    if ($("#citySearch").value.trim()) searchCity();
+  });
+  $("#searchCityButton").addEventListener("click", searchCity);
+  $("#citySearch").addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      searchCity();
+    }
+  });
+  $("#citySearch").addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      if ($("#citySearch").value.trim().length >= 3) searchCity();
+    }, 650);
+  });
+  $("#quickCity").addEventListener("change", event => {
+    const city = CITIES.find(item => item.id === event.target.value);
+    if (!city) return;
+    storeLocation({
+      latitude: city.lat, longitude: city.lon, timeZone: city.zone, label: city.name,
+      country: countryName(city.country), countryCode: city.country, source: "search"
+    });
+    updateCountryFromLocation(S.location);
+  });
+  $("#geoButton").addEventListener("click", () => requestGps(false));
+  $("#identifyGpsButton").addEventListener("click", identifyGpsCity);
+  $("#clearLocationButton").addEventListener("click", clearLocation);
+  $("#enableNotifications").addEventListener("click", requestNotificationPermission);
+  $("#testNotification").addEventListener("click", async () => {
+    if (!("Notification" in window)) {
+      showToast(t("permissionUnsupported"));
+      return;
+    }
+    if (Notification.permission !== "granted" && !(await requestNotificationPermission())) return;
+    const message = t("testNotificationSent");
+    showToast(message);
+    notify(t("notificationTitle"), message, "namazishqip-test");
+  });
+  $("#reminderMinutes").addEventListener("change", event => {
+    S.notifications.before = [0, 5, 10, 15].includes(Number(event.target.value)) ? Number(event.target.value) : 0;
+    save();
+  });
+  $("#notificationToggles").addEventListener("change", onNotificationToggle);
+  $("#azanToggles").addEventListener("change", onAzanToggle);
+  $("#azanEnabled").addEventListener("change", event => {
+    S.azan.enabled = event.target.checked;
+    if (S.azan.enabled && !OBLIGATORY_KEYS.some(key => S.azan.prayers[key])) {
+      for (const key of OBLIGATORY_KEYS) S.azan.prayers[key] = true;
+      fillToggles();
+    }
+    save();
+    showToast(t(S.azan.enabled ? "azanEnabledToast" : "azanDisabledToast"));
+  });
+  $("#azanVolume").addEventListener("input", event => {
+    S.azan.volume = clamp(Number(event.target.value), 0, 1);
+    azanAudio.volume = S.azan.volume;
+    save();
+  });
+  $("#previewAzan").addEventListener("click", () => playAzan(true));
+  $("#toggleAzanPlayback").addEventListener("click", async () => {
+    if (azanAudio.paused) {
+      if (azanAudio.ended) azanAudio.currentTime = 0;
+      try {
+        await azanAudio.play();
+        showToast(t("azanPlaying"));
+      } catch {
+        showToast(t("azanBlocked"));
+      }
+    } else {
+      azanAudio.pause();
+      showToast(t("audioPaused"));
+    }
+  });
+  $("#stopAzan").addEventListener("click", () => {
+    azanAudio.pause();
+    azanAudio.currentTime = 0;
+    showToast(t("audioStopped"));
+  });
+  $("#dhikrChoices").addEventListener("click", event => {
+    const button = event.target.closest("[data-dhikr]");
+    if (!button) return;
+    S.tasbih.dhikr = clamp(parseInt(button.dataset.dhikr, 10) || 0, 0, DHIKR.length - 1);
+    S.tasbih.count = 0;
+    save();
+    renderTasbih();
+  });
+  $("#targetOptions").addEventListener("click", event => {
+    const button = event.target.closest("[data-target]");
+    if (!button) return;
+    setTasbihTarget(button.dataset.target);
+  });
+  $("#customTarget").addEventListener("change", event => {
+    if (event.target.value !== "") setTasbihTarget(event.target.value);
+  });
+  $("#countButton").addEventListener("click", tapTasbih);
+  $("#resetTasbih").addEventListener("click", () => {
+    if (!window.confirm(t("resetConfirm"))) return;
+    S.tasbih.count = 0;
+    save();
+    renderTasbih();
+  });
+  $("#installButton").addEventListener("click", promptInstall);
+  $("#installButtonSettings").addEventListener("click", promptInstall);
+  window.addEventListener("beforeinstallprompt", event => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    setInstallButtonVisibility();
+  });
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    setInstallButtonVisibility();
+    showToast(t("installed"));
+  });
+  window.addEventListener("online", updateConnectionStatus);
+  window.addEventListener("offline", updateConnectionStatus);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      scheduleCache.clear();
+      renderAll();
+      tick();
+    }
+  });
+  window.addEventListener("hashchange", () => setView(location.hash.slice(1)));
+  window.addEventListener("orientationchange", drawCompass);
+}
+
+function initialize() {
+  translateStatic();
+  renderSettings();
+  activateTheme();
+  attachEvents();
+  renderTasbih();
+  monthView = null;
+  renderAll();
+  setInstallButtonVisibility();
+  updateNotificationServiceWorker();
+  setInterval(tick, 1000);
+  const initialView = location.hash.slice(1).replace(/^v/, "");
+  const legacyView = { "0": "home", "1": "calendar", "2": "qibla", "3": "tasbih", "4": "settings" };
+  setView(legacyView[initialView] || initialView || "home");
+
+  const isManualLocation = new URLSearchParams(location.search).has("manual-location");
+  const isFirstVisit = !localStorage.getItem(STORAGE_KEY) && !localStorage.getItem(LEGACY_KEY);
+  if (!S.location && isFirstVisit && !isManualLocation) {
+    setTimeout(() => requestGps(true), 400);
+  }
+}
+
+initialize();

@@ -1,0 +1,22 @@
+/
+  Cache-Control: no-cache, must-revalidate
+
+/index.html
+  Cache-Control: no-cache, must-revalidate
+
+/script.js
+  Cache-Control: no-cache, must-revalidate
+
+/style.css
+  Cache-Control: no-cache, must-revalidate
+
+/sw.js
+  Cache-Control: no-cache, must-revalidate
+
+/assets/js/*.mjs
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: no-cache, must-revalidate
+
+/assets/vendor/*.mjs
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: no-cache, must-revalidate

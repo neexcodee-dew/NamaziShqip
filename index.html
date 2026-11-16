@@ -1,174 +1,296 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="sq">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>NamaziShqip – Kohët e namazit</title>
-<meta name="theme-color" content="#0a3a2a">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="NamaziShqip">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="./assets/logo/icon-192.png">
-<link rel="apple-touch-icon" href="./assets/logo/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Figtree:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08251f">
+  <meta name="description" content="Kohët e namazit të llogaritura sipas vendndodhjes dhe metodës suaj. Takvim, kibël dhe tesbih.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="NamaziShqip — Kohët e namazit">
+  <meta property="og:description" content="Kohë namazi të llogaritura lokalisht, me metoda të zgjedhshme dhe kalendar mujor.">
+  <meta property="og:image" content="./assets/logo/icon-512.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="NamaziShqip">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>NamaziShqip — Kohët e namazit</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/logo/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="./assets/logo/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="app">
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#home" aria-label="NamaziShqip — faqja kryesore">
+        <img src="./assets/logo/icon-192.png" width="42" height="42" alt="">
+        <span><b>NamaziShqip</b><small data-i18n="brandTagline">Koha jote. Qetësia jote.</small></span>
+      </a>
+      <div class="topbar-actions">
+        <span class="connection-status" id="connectionStatus" role="status" data-i18n="online">Online</span>
+        <button class="button button-quiet install-button" id="installButton" type="button" hidden data-i18n="install">Instalo</button>
+        <button class="location-pill" id="locBtn" type="button" aria-label="Ndrysho vendndodhjen">
+          <span aria-hidden="true">⌖</span><span id="locationLabel" data-i18n="chooseLocation">Zgjidh vendndodhjen</span><span aria-hidden="true">⌄</span>
+        </button>
+      </div>
+    </header>
 
-<header>
- <div class="logo"><img src="./assets/logo/icon-192.png" alt="" width="34" height="34">NamaziShqip</div>
- <div class="header-actions">
-  <button class="loc" id="locBtn" aria-label="Ndrysho vendndodhjen">📍 Prishtinë</button>
-  <!-- Butoni i instalimit u hoq -->
- </div>
-</header>
-
-<div class="page-title-wrap">
-  <div class="page-title">
-    <p class="kicker">📍 Automatikisht në Lokacionin Tuaj!</p>
-    <h1>Kohët e namazit</h1>
-  </div>
-  <div class="page-date">
-    <b id="dt">E hënë, 26 Tetor 2026</b>
-    <p class="mut" id="hj">15 Xhumadel-ula 1448 H.</p>
-  </div>
-</div>
-
-<main class="main-grid">
-
-<!-- VIEW 0: SOT -->
-<section class="view on" id="v0">
- <div class="hero" id="hero">
-  <div class="hc">
-   <p class="kicker-white">NAMAZI I RADHËS</p>
-   <h2 class="hero-title"><span class="moon">☾</span> <span id="nxN">Jacia</span></h2>
-   
-   <div class="ringbox"><svg viewBox="0 0 236 236"><circle class="bg" cx="118" cy="118" r="102"/><circle class="fg" id="ring" cx="118" cy="118" r="102"/></svg>
-    <div class="ringin">
-      <small>KOHA E MBETUR</small>
-      <div class="cd" id="cd">00:00:00</div>
-      <small id="nxT">në orën 18:03</small>
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow"><span class="eyebrow-dot"></span><span data-i18n="pageEyebrow">Udhërrëfyesi yt i përditshëm</span></p>
+        <h1 data-i18n="pageTitle">Kohët e namazit</h1>
+      </div>
+      <div class="date-panel">
+        <b id="gregorianDate">—</b>
+        <span id="hijriDate">—</span>
+        <time id="localClock" aria-label="Ora lokale">—:—:—</time>
+      </div>
     </div>
-   </div>
-   
-   <div class="cen" style="margin-top: 20px; position: relative; z-index: 10;">
-     <button class="btn" id="stopEzanHero" style="display: none; background: #ef4444; color: #fff !important; border-radius: 30px; padding: 12px 30px; font-size: 16px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); border: none;">⏹ Ndal Ezanin</button>
-   </div>
+    <p class="loading-status" id="appLoadingStatus" role="status" hidden></p>
 
-   <div class="rmz" id="rmz" hidden></div>
+    <main id="mainContent" aria-busy="true">
+      <section class="view is-active" id="view-home" aria-labelledby="homeTitle">
+        <div class="home-grid">
+          <article class="next-prayer-card">
+            <div class="card-orbit orbit-one"></div>
+            <div class="card-orbit orbit-two"></div>
+            <div class="hero-content">
+              <p class="eyebrow eyebrow-light" data-i18n="nextPrayer">Namazi i radhës</p>
+              <h2 id="nextPrayerName" class="next-prayer-name">—</h2>
+              <p class="hero-location"><span aria-hidden="true">⌖</span> <span id="heroLocation">Zgjidh vendndodhjen</span></p>
+              <div class="countdown-wrap">
+                <svg class="countdown-ring" viewBox="0 0 240 240" aria-hidden="true">
+                  <circle class="ring-track" cx="120" cy="120" r="106"></circle>
+                  <circle class="ring-progress" id="countdownRing" cx="120" cy="120" r="106"></circle>
+                </svg>
+                <div class="countdown-copy">
+                  <span data-i18n="timeRemaining">Koha e mbetur</span>
+                  <strong id="countdown">--:--:--</strong>
+                  <small id="nextPrayerTime">—</small>
+                </div>
+              </div>
+              <div class="hero-foot">
+                <span id="calculationCaption">—</span>
+                <span id="timezoneCaption">—</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="surface prayer-surface" aria-labelledby="homeTitle">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow" data-i18n="dailySchedule">Orari i ditës</p>
+                <h2 id="homeTitle" data-i18n="prayerSchedule">Namazet e sotme</h2>
+              </div>
+              <span class="method-chip" id="methodLabel">—</span>
+            </div>
+            <div class="prayer-list" id="prayerList" aria-live="polite"></div>
+            <p class="small-note" id="scheduleNote" data-i18n="methodNote">Orari varet nga metoda e zgjedhur dhe mund të ndryshojë nga kalendari i xhamisë suaj.</p>
+          </article>
+        </div>
+
+        <div class="content-grid">
+          <article class="surface progress-card" id="progressCard">
+            <div class="section-heading">
+              <div><p class="eyebrow" data-i18n="yourDay">Dita jote</p><h2 data-i18n="prayerProgress">Namazet e shënuara</h2></div>
+              <b class="progress-count" id="progressCount">0 / 5</b>
+            </div>
+            <div class="progress-track"><span id="progressBar"></span></div>
+            <div class="week-strip" id="weekStrip"></div>
+          </article>
+
+          <article class="surface verse-card">
+            <div class="content-card-top"><span class="gold-mark" aria-hidden="true">۞</span><p class="eyebrow" data-i18n="quranVerse">Ajet për kohët e namazit</p></div>
+            <p class="arabic verse-arabic" lang="ar" dir="rtl">إِنَّ الصَّلَاةَ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَّوْقُوتًا</p>
+            <p class="verse-translation" id="verseTranslation"></p>
+            <a class="source-link" href="https://quran.com/4/103" target="_blank" rel="noopener noreferrer"><span data-i18n="sourceNisa">En-Nisa, 4:103 · Lexo burimin</span><span aria-hidden="true">↗</span></a>
+          </article>
+
+          <article class="surface hadith-card">
+            <div class="content-card-top"><span class="gold-mark" aria-hidden="true">✧</span><p class="eyebrow" data-i18n="dailyHadith">Hadith i verifikuar</p></div>
+            <p class="hadith-text" id="hadithText"></p>
+            <a class="source-link" href="https://sunnah.com/bukhari/81/53" target="_blank" rel="noopener noreferrer"><span data-i18n="hadithSource">Sahih al-Bukhari 6464 · Lexo burimin</span><span aria-hidden="true">↗</span></a>
+          </article>
+
+          <article class="surface ramadan-card">
+            <div class="content-card-top"><span class="gold-mark" aria-hidden="true">☾</span><p class="eyebrow" data-i18n="ramadan">Ramazani</p></div>
+            <h2 id="ramadanTitle">—</h2>
+            <div class="iftar-row"><span data-i18n="sehri">Syfyri</span><b id="sehriTime">—</b></div>
+            <div class="iftar-row"><span data-i18n="iftar">Iftari</span><b id="iftarTime">—</b></div>
+            <p class="small-note" data-i18n="ramadanNote">Kohët e syfyrit dhe iftarit bazohen te Sabahu dhe Akshami.</p>
+          </article>
+
+          <article class="surface friday-card">
+            <div class="content-card-top"><span class="gold-mark" aria-hidden="true">✦</span><p class="eyebrow" data-i18n="fridayReminder">Kujtesë për xhumanë</p></div>
+            <p id="fridayText" class="friday-text">—</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" id="view-calendar" aria-labelledby="calendarTitle" hidden>
+        <div class="view-heading">
+          <div><p class="eyebrow" data-i18n="monthView">Pamja mujore</p><h2 id="calendarTitle" data-i18n="monthlyCalendar">Takvimi mujor</h2></div>
+          <div class="view-actions">
+            <button class="button button-quiet" id="printCalendar" type="button" data-i18n="print">Shtyp</button>
+            <button class="button button-primary" id="exportCalendar" type="button" data-i18n="downloadCsv">Shkarko CSV</button>
+          </div>
+        </div>
+        <div class="month-control surface">
+          <button class="icon-button" id="previousMonth" type="button" aria-label="Muaji paraprak">‹</button>
+          <b id="monthTitle">—</b>
+          <button class="icon-button" id="nextMonth" type="button" aria-label="Muaji tjetër">›</button>
+        </div>
+        <div class="calendar-wrap surface" tabindex="0" aria-label="Takvimi i namazit">
+          <table class="calendar-table" id="calendarTable"></table>
+        </div>
+        <p class="small-note calendar-footnote" data-i18n="calendarNote">Takvimi përdor të njëjtën metodë, medh'heb dhe rregullime si orari i ditës.</p>
+      </section>
+
+      <section class="view" id="view-qibla" aria-labelledby="qiblaTitle" hidden>
+        <div class="view-heading">
+          <div><p class="eyebrow" data-i18n="direction">Drejtimi</p><h2 id="qiblaTitle" data-i18n="qibla">Kibla</h2></div>
+        </div>
+        <article class="surface qibla-layout">
+          <div class="compass-column">
+            <div class="compass-shell" id="compassShell">
+              <div class="compass-needle" id="compassRose">
+                <svg viewBox="0 0 240 240" role="img" aria-label="Busulla e kibles">
+                  <circle cx="120" cy="120" r="108" class="compass-outline"></circle>
+                  <circle cx="120" cy="120" r="84" class="compass-inner"></circle>
+                  <g class="compass-ticks">
+                    <path d="M120 16v14M120 210v14M16 120h14M210 120h14M46.3 46.3l10 10M183.7 183.7l10 10M193.7 46.3l-10 10M56.3 183.7l-10 10"></path>
+                  </g>
+                  <text x="120" y="52" text-anchor="middle" class="compass-north">N</text>
+                  <text x="120" y="207" text-anchor="middle" class="compass-cardinal">S</text>
+                  <text x="190" y="125" text-anchor="middle" class="compass-cardinal">E</text>
+                  <text x="50" y="125" text-anchor="middle" class="compass-cardinal">W</text>
+                  <g id="qiblaNeedle">
+                    <path d="M120 62 133 120 120 108 107 120Z" class="needle-gold"></path>
+                    <path d="M120 178 107 120 120 132 133 120Z" class="needle-muted"></path>
+                  </g>
+                  <circle cx="120" cy="120" r="6" class="compass-center"></circle>
+                </svg>
+              </div>
+            </div>
+            <button class="button button-primary compass-button" id="activateCompass" type="button" data-i18n="activateCompass">Aktivizo busullën</button>
+            <p class="small-note centered" id="compassStatus" aria-live="polite"></p>
+          </div>
+          <div class="qibla-details">
+            <p class="eyebrow" data-i18n="bearing">Këndi i kibles</p>
+            <strong id="qiblaBearing" class="bearing-value">—°</strong>
+            <p id="qiblaSummary" class="muted-copy">—</p>
+            <div class="qibla-distance"><span data-i18n="distanceToKaaba">Largësia deri te Qabja</span><b id="qiblaDistance">— km</b></div>
+            <p class="small-note" data-i18n="compassFallback">Drejtimi statik llogaritet nga koordinatat. Busulla kërkon sensor dhe leje nga pajisja.</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="view" id="view-tasbih" aria-labelledby="tasbihTitle" hidden>
+        <div class="view-heading">
+          <div><p class="eyebrow" data-i18n="quietPractice">Praktikë e qetë</p><h2 id="tasbihTitle" data-i18n="tasbih">Tesbihu digjital</h2></div>
+        </div>
+        <article class="surface tasbih-panel">
+          <div class="dhikr-choices" id="dhikrChoices" role="group" aria-label="Zgjidh dhikrin"></div>
+          <p class="arabic tasbih-arabic" id="dhikrArabic" lang="ar" dir="rtl"></p>
+          <div class="tasbih-counter">
+            <svg viewBox="0 0 240 240" aria-hidden="true">
+              <circle class="tasbih-track" cx="120" cy="120" r="106"></circle>
+              <circle class="tasbih-progress" id="tasbihProgress" cx="120" cy="120" r="106"></circle>
+            </svg>
+            <button id="countButton" type="button" aria-label="Rrit numërimin"><b id="tasbihCount">0</b><span id="tasbihTargetLabel">0 / 33</span></button>
+          </div>
+          <div class="target-row">
+            <div class="target-options" id="targetOptions" role="group" aria-label="Zgjidh cakun"></div>
+            <label class="custom-target-label"><span data-i18n="customTarget">Cak i personalizuar</span><input id="customTarget" type="number" min="1" max="10000" step="1" inputmode="numeric" aria-label="Cak i personalizuar"></label>
+          </div>
+          <div class="tasbih-actions">
+            <button class="button button-quiet" id="resetTasbih" type="button" data-i18n="reset">Rifillo</button>
+            <span class="small-note" id="tasbihTotal">Gjithsej: 0</span>
+          </div>
+          <p class="small-note centered" data-i18n="tasbihPersistence">Numërimi ruhet në këtë pajisje. Dridhja varet nga mbështetja e telefonit.</p>
+        </article>
+      </section>
+
+      <section class="view" id="view-settings" aria-labelledby="settingsTitle" hidden>
+        <div class="view-heading">
+          <div><p class="eyebrow" data-i18n="personalize">Përshtate për vete</p><h2 id="settingsTitle" data-i18n="settings">Cilësimet</h2></div>
+        </div>
+        <div class="settings-grid">
+          <article class="surface settings-card">
+            <div class="settings-card-heading"><span class="settings-icon" aria-hidden="true">⌖</span><div><h3 data-i18n="locationSettings">Vendndodhja</h3><p data-i18n="locationExplain">Orari dhe zona kohore përcaktohen nga koordinatat e zgjedhura.</p></div></div>
+            <div class="location-current" id="locationDetails"></div>
+            <div class="location-search">
+              <label for="countrySelect" data-i18n="country">Shteti</label>
+              <select id="countrySelect"><option value="">Zgjidh shtetin</option></select>
+              <label for="citySearch" data-i18n="city">Qyteti</label>
+              <div class="search-line"><input id="citySearch" type="search" autocomplete="off" placeholder="Kërko qytet në botë"><button class="button button-primary" id="searchCityButton" type="button" data-i18n="search">Kërko</button></div>
+              <div class="location-results" id="locationResults" role="listbox" aria-label="Rezultatet e qyteteve"></div>
+              <div class="location-actions">
+                <button class="button button-quiet" id="geoButton" type="button" data-i18n="useGps">Përdor GPS</button>
+                <button class="button button-quiet" id="identifyGpsButton" type="button" hidden data-i18n="identifyGps">Gjej qytetin (dërgo koordinatat)</button>
+                <button class="button button-quiet" id="clearLocationButton" type="button" data-i18n="clearLocation">Hiq vendndodhjen</button>
+              </div>
+              <p class="small-note" id="locationMessage" aria-live="polite"></p>
+              <p class="privacy-note" data-i18n="privacyNote">Koordinatat nga GPS llogariten në pajisje. Për emrin e qytetit, mund t'i dërgosh veçmas te OpenStreetMap.</p>
+            </div>
+            <label class="setting-field" for="quickCity"><span data-i18n="popularCities">Qytete të shpejta</span><select id="quickCity"><option value="">—</option></select></label>
+          </article>
+
+          <article class="surface settings-card">
+            <div class="settings-card-heading"><span class="settings-icon" aria-hidden="true">◷</span><div><h3 data-i18n="prayerCalculation">Llogaritja e namazit</h3><p data-i18n="calculationExplain">Zgjidh konventën që përdor komuniteti yt lokal.</p></div></div>
+            <label class="setting-field" for="methodSelect"><span data-i18n="calculationMethod">Metoda e llogaritjes</span><select id="methodSelect"></select></label>
+            <label class="setting-field" for="madhabSelect"><span data-i18n="asrMethod">Metoda e Ikindisë</span><select id="madhabSelect"><option value="shafi" data-i18n="standard">Shafi'i / Standard</option><option value="hanafi" data-i18n="hanafi">Hanefi</option></select></label>
+            <label class="setting-field" for="timeFormat"><span data-i18n="timeFormat">Formati i orës</span><select id="timeFormat"><option value="24">24 orë</option><option value="12">12 orë</option></select></label>
+            <div class="adjustment-list" id="adjustmentList"></div>
+            <p class="small-note" data-i18n="adjustmentNote">Rregullimet shtohen në minutat e metodës së zgjedhur.</p>
+          </article>
+
+          <article class="surface settings-card">
+            <div class="settings-card-heading"><span class="settings-icon" aria-hidden="true">◉</span><div><h3 data-i18n="alerts">Njoftimet</h3><p data-i18n="notificationsExplain">Njoftimet lokale kërkojnë që kjo faqe të jetë e hapur.</p></div></div>
+            <p class="permission-status" id="notificationStatus" role="status">—</p>
+            <label class="setting-field" for="reminderMinutes"><span data-i18n="reminderBefore">Kujto para namazit</span><select id="reminderMinutes"><option value="0" data-i18n="atPrayerTime">Në kohën e namazit</option><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option></select></label>
+            <div class="prayer-toggles" id="notificationToggles"></div>
+            <button class="button button-primary" id="enableNotifications" type="button" data-i18n="enableNotifications">Lejo njoftimet</button>
+            <button class="button button-quiet" id="testNotification" type="button" data-i18n="testNotification">Provo njoftimin</button>
+            <p class="small-note" data-i18n="backgroundLimit">Shfletuesit nuk dërgojnë njoftime kur aplikacioni është mbyllur. Kjo kërkon Web Push dhe server.</p>
+          </article>
+
+          <article class="surface settings-card">
+            <div class="settings-card-heading"><span class="settings-icon" aria-hidden="true">♫</span><div><h3 data-i18n="azan">Ezani</h3><p data-i18n="azanExplain">Kontrollet e audios funksionojnë pasi të japësh leje me një prekje.</p></div></div>
+            <label class="setting-field switch-field" for="azanEnabled"><span data-i18n="enableAzan">Aktivizo ezanin e plotë</span><input id="azanEnabled" type="checkbox"><span class="switch-ui" aria-hidden="true"></span></label>
+            <label class="setting-field" for="azanVolume"><span data-i18n="volume">Volumi</span><input id="azanVolume" type="range" min="0" max="1" step="0.05" value="0.8"></label>
+            <div class="prayer-toggles" id="azanToggles"></div>
+            <div class="audio-actions"><button class="button button-primary" id="previewAzan" type="button" data-i18n="previewAzan">Dëgjo provën</button><button class="button button-quiet" id="toggleAzanPlayback" type="button" data-i18n="pauseResume">Ndalo / vazhdo</button><button class="button button-quiet" id="stopAzan" type="button" data-i18n="stopAudio">Ndalo audion</button></div>
+            <p class="small-note" data-i18n="audioNote">Ky projekt përmban një skedar ezani. Luajtja automatike mund të bllokohet nga shfletuesi.</p>
+          </article>
+
+          <article class="surface settings-card">
+            <div class="settings-card-heading"><span class="settings-icon" aria-hidden="true">◐</span><div><h3 data-i18n="appearance">Pamja</h3><p data-i18n="appearanceExplain">Ruhet në këtë pajisje.</p></div></div>
+            <label class="setting-field" for="languageSelect"><span data-i18n="language">Gjuha</span><select id="languageSelect"><option value="sq">Shqip</option><option value="en">English</option><option value="de">Deutsch</option></select></label>
+            <label class="setting-field" for="themeSelect"><span data-i18n="theme">Tema</span><select id="themeSelect"><option value="system" data-i18n="systemTheme">Sipas pajisjes</option><option value="light" data-i18n="lightTheme">E çelët</option><option value="dark" data-i18n="darkTheme">E errët</option></select></label>
+          </article>
+
+          <article class="surface settings-card">
+            <div class="settings-card-heading"><span class="settings-icon" aria-hidden="true">⬇</span><div><h3 data-i18n="installOffline">Instalimi dhe offline</h3><p data-i18n="installExplain">Orari llogaritet në pajisje dhe mund të rifreskohet pa internet.</p></div></div>
+            <button class="button button-primary" id="installButtonSettings" type="button" data-i18n="install">Instalo</button>
+            <p class="small-note" id="offlineStatus"></p>
+            <p class="small-note" data-i18n="iosInstallNote">Në iPhone: hap menynë Share në Safari dhe zgjidh “Add to Home Screen”.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Navigimi kryesor">
+      <button class="nav-item is-active" type="button" data-view="home" aria-current="page"><span aria-hidden="true">⌂</span><b data-i18n="navHome">Sot</b></button>
+      <button class="nav-item" type="button" data-view="calendar"><span aria-hidden="true">▦</span><b data-i18n="navCalendar">Takvimi</b></button>
+      <button class="nav-item" type="button" data-view="qibla"><span aria-hidden="true">⌖</span><b data-i18n="navQibla">Kibla</b></button>
+      <button class="nav-item" type="button" data-view="tasbih"><span aria-hidden="true">◉</span><b data-i18n="navTasbih">Tesbih</b></button>
+      <button class="nav-item" type="button" data-view="settings"><span aria-hidden="true">⚙</span><b data-i18n="navSettings">Cilësimet</b></button>
+    </nav>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </div>
- </div>
- 
- <div class="side-col">
-   <div id="list" class="list"></div>
-   <div class="card prog" id="prog"></div>
-   
-   <div class="card" style="text-align: center; background: var(--hl); border-color: var(--pri);">
-     <p class="mut" style="color: var(--pri); font-weight: 700; margin-bottom: 10px; letter-spacing: 1px;">AJETI I DITËS</p>
-     <p style="font-family: 'Amiri', serif; font-size: 26px; line-height: 1.8; direction: rtl;">إِنَّ الصَّلَاةَ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَّوْقُوتًا</p>
-     <p class="mut" style="margin-top: 12px; font-style: italic;">"Vërtet, namazi është detyrë e obligueshme për besimtarët në kohë të caktuara." (En-Nisa: 103)</p>
-   </div>
- </div>
-</section>
-
-<!-- VIEW 1: TAKVIMI -->
-<section class="view" id="v1">
- <h2>Takvimi mujor</h2>
- <div class="mnav"><button id="pm" aria-label="Muaji paraprak">‹</button><b id="mt"></b><button id="nm" aria-label="Muaji tjetër">›</button></div>
- <div class="tw"><table id="tb"></table></div>
-</section>
-
-<!-- VIEW 2: KIBLA -->
-<section class="view" id="v2">
- <h2>Drejtimi i Kibles</h2>
- <p class="mut" id="qi"></p>
- <div class="cmp" id="cmp">
-  <div id="dial"><svg viewBox="0 0 200 200">
-   <circle class="r" cx="100" cy="100" r="92" fill="var(--card)" stroke="var(--line)" stroke-width="3"/>
-   <g id="ticks" stroke="var(--mut)" stroke-width="1.5"></g>
-   <g font-family="Figtree" font-weight="700" font-size="13" text-anchor="middle" fill="var(--tx)"><text x="100" y="34">V</text><text x="171" y="105">L</text><text x="100" y="176">J</text><text x="29" y="105">P</text></g>
-   <g id="qg"><line x1="100" y1="100" x2="100" y2="40" stroke="var(--gold)" stroke-width="3" stroke-linecap="round"/><rect x="90" y="8" width="20" height="22" rx="2" fill="#111"/><rect x="90" y="13" width="20" height="4" fill="#d4a93c"/></g>
-   <circle cx="100" cy="100" r="5" fill="var(--pri)"/>
-  </svg></div>
- </div>
- <div class="big" id="qd">–</div>
- <p class="mut cen" id="qs"></p>
- <div class="cen top14"><button class="btn" id="cpBtn">Aktivizo busullën</button></div>
-</section>
-
-<!-- VIEW 3: TASBIHU -->
-<section class="view" id="v3">
- <h2>Tasbihu</h2>
- <div class="chips" id="dh"></div>
- <div class="ar" id="ar"></div>
- <div class="tsb">
-  <svg viewBox="0 0 220 220"><circle class="bg" cx="110" cy="110" r="96"/><circle class="fg" id="tr" cx="110" cy="110" r="96"/></svg>
-  <button id="tap" aria-label="Numëro"><b id="tc">0</b><small id="tt"></small></button>
- </div>
- <div class="chips" id="tg"></div>
- <div class="cen"><button class="btn sec" id="trs">Rifillo numërimin</button></div>
- <p class="mut cen top10" id="tot"></p>
-</section>
-
-<!-- VIEW 4: CILËSIMET -->
-<section class="view" id="v4">
- <h2>Cilësimet</h2>
- <div class="settings-grid">
-   <div class="card">
-    <p class="mut">Vendndodhja</p>
-    <div class="fld"><span>Gjej vendin tim</span><button class="btn sec" id="geo">Përdor GPS</button></div>
-    <div class="fld"><span>Shteti</span><select id="sco"></select></div>
-    <div class="fld"><span>Qytetet e shpejta</span><select id="sc"></select></div>
-   </div>
-   <div class="card">
-    <div class="fld"><span>Metoda e llogaritjes</span><select id="sm"></select></div>
-    <div class="fld"><span>Ikindia</span><select id="sa"><option value="1">Standarde (Shafi)</option><option value="2">Hanefi</option></select></div>
-    <div class="fld"><span>Rregullim manual</span>
-     <select id="sadj">
-      <option value="-5">-5 min</option><option value="-3">-3 min</option><option value="-2">-2 min</option>
-      <option value="-1">-1 min</option><option value="0">0 (standard)</option><option value="1">+1 min</option>
-      <option value="2">+2 min</option><option value="3">+3 min</option><option value="5">+5 min</option>
-     </select>
-    </div>
-    <div class="fld"><span>Njoftimi para</span><select id="sp"><option value="0">Në kohë</option><option value="5">5 min para</option><option value="10">10 min para</option></select></div>
-    <div class="fld"><span>Tingulli (Bip)</span><select id="ss"><option value="1">Aktiv</option><option value="0">Joaktiv</option></select></div>
-    <div class="fld"><span>Pamja</span><select id="st"><option value="">Automatike</option><option value="light">E çelët</option><option value="dark">E errët</option></select></div>
-   </div>
- </div>
- 
- <div class="btns" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: center; margin-top: 25px;">
-   
-   <!-- Switch-i i bukur per Njoftimet -->
-   <div style="display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line); padding: 8px 16px; border-radius: 30px;">
-     <span style="font-weight: 600; font-size: 14px;">Njoftimet</span>
-     <label class="switch">
-       <input type="checkbox" id="notifSwitch">
-       <span class="slider"></span>
-     </label>
-   </div>
-
-   <button class="btn sec" id="test">Provo njoftimin</button>
-   <button class="btn" id="ezanBtn" style="background:#eab308; color:#000 !important; border:none;">🎵 Aktivizo Ezanin</button>
- </div>
-</section>
-
-</main>
-
-<nav aria-label="Navigimi kryesor">
- <button class="on" data-v="0"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Sot</button>
- <button data-v="1"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Takvimi</button>
- <button data-v="2"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Kibla</button>
- <button data-v="3"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="19" cy="10" r="2"/><circle cx="16.5" cy="18" r="2"/><circle cx="7.5" cy="18" r="2"/><circle cx="5" cy="10" r="2"/></svg>Tasbihu</button>
- <button data-v="4"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Cilësimet</button>
-</nav>
-<div id="toast" role="status"></div>
-
-</div><!-- /app -->
-<script src="script.js"></script>
+  <script type="module" src="./script.js"></script>
 </body>
 </html>

@@ -1,71 +1,141 @@
-const C = "nsq-v6";
-const A = [
-  "./",
-  "index.html",
-  "style.css",
-  "script.js",
-  "manifest.webmanifest",
-  "ezani.mp3",
-  "assets/logo/icon-192.png",
-  "assets/logo/icon-512.png"
-];
+"use strict";
 
-self.addEventListener("install", e => {
-  e.waitUntil(
-    caches.open(C)
-      .then(c => Promise.all(A.map(u => c.add(u).catch(() => {}))))
+const CACHE_NAME = "namazishqip-v9";
+const APP_ASSETS = [
+  "./",
+  "./index.html",
+  "./offline.html",
+  "./style.css",
+  "./script.js",
+  "./manifest.webmanifest",
+  "./assets/js/prayer-core.mjs",
+  "./assets/vendor/adhan.esm.min.mjs",
+  "./assets/vendor/tz-lookup.mjs",
+  "./assets/logo/icon-192.png",
+  "./assets/logo/icon-512.png"
+];
+const AUDIO_URL = new URL("./ezani.mp3", self.location.href).href;
+
+self.addEventListener("install", event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => Promise.allSettled(APP_ASSETS.map(url => cache.add(url))))
       .then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener("activate", e => {
-  e.waitUntil(
+self.addEventListener("activate", event => {
+  event.waitUntil(
     caches.keys()
-      .then(k => Promise.all(k.filter(x => x != C).map(x => caches.delete(x))))
+      .then(keys => Promise.all(keys
+        .filter(key => key !== CACHE_NAME &&
+          (key.startsWith("namazishqip-") || key === "nsq-v6"))
+        .map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener("fetch", e => {
-  const r = e.request;
-  if (r.method != "GET") return;
-  const u = new URL(r.url);
+async function cacheResponse(request, response) {
+  if (response && response.ok && response.status === 200) {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, response.clone());
+  }
+  return response;
+}
 
-  // API-të e jashtme (Aladhan, geokodim etj.) nuk ruhen në cache
-  const isFont = /(^|\.)fonts\.(googleapis|gstatic)\.com$/.test(u.hostname);
-  if (u.origin != location.origin && !isFont) return;
+async function networkFirst(request) {
+  try {
+    return await cacheResponse(request, await fetch(request));
+  } catch {
+    const cached = await caches.match(request, { ignoreSearch: true });
+    if (cached) return cached;
+    if (request.mode === "navigate") {
+      return (await caches.match("./index.html")) ||
+        (await caches.match("./offline.html")) ||
+        new Response("Offline", { status: 503, statusText: "Offline" });
+    }
+    return new Response("", { status: 503, statusText: "Offline" });
+  }
+}
 
-  // Audio (ezani.mp3) përdor kërkesa me Range, ato lihen direkt te rrjeti/cache
-  if (r.headers.has("range")) {
-    e.respondWith(
-      caches.match(u.href).then(h => h || fetch(r))
-    );
-    return;
+async function cacheFirst(request) {
+  const cached = await caches.match(request, { ignoreSearch: true });
+  if (cached) {
+    fetch(request)
+      .then(response => cacheResponse(request, response))
+      .catch(() => {});
+    return cached;
+  }
+  return cacheResponse(request, await fetch(request));
+}
+
+async function audioResponse(request) {
+  const cache = await caches.open(CACHE_NAME);
+  let fullResponse = await cache.match(AUDIO_URL);
+  if (!fullResponse) {
+    try {
+      const fullRequest = new Request(AUDIO_URL, { credentials: "same-origin" });
+      fullResponse = await fetch(fullRequest);
+      if (fullResponse.ok && fullResponse.status === 200) {
+        await cache.put(AUDIO_URL, fullResponse.clone());
+      } else {
+        return fullResponse;
+      }
+    } catch {
+      return new Response("", { status: 503, statusText: "Audio unavailable offline" });
+    }
   }
 
-  e.respondWith(
-    caches.match(r, { ignoreSearch: true }).then(h => {
-      const n = fetch(r).then(x => {
-        if (x && x.ok && x.status === 200) {
-          const y = x.clone();
-          caches.open(C).then(c => c.put(r, y)).catch(() => {});
-        }
-        return x;
-      }).catch(() => {
-        if (h) return h;
-        if (r.mode === "navigate") return caches.match("index.html").then(i => i || caches.match("./"));
-        return new Response("", { status: 503, statusText: "Offline" });
-      });
-      return h || n;
-    })
-  );
+  const range = request.headers.get("range");
+  if (!range) return fullResponse;
+  const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+  if (!match) return new Response("", { status: 416, statusText: "Invalid range" });
+  const blob = await fullResponse.blob();
+  const start = match[1] ? Number(match[1]) : Math.max(0, blob.size - Number(match[2]));
+  const end = match[2] ? Math.min(Number(match[2]), blob.size - 1) : blob.size - 1;
+  if (start > end || start >= blob.size) {
+    return new Response("", {
+      status: 416,
+      headers: { "Content-Range": "bytes */" + blob.size }
+    });
+  }
+  return new Response(blob.slice(start, end + 1), {
+    status: 206,
+    headers: {
+      "Accept-Ranges": "bytes",
+      "Content-Length": String(end - start + 1),
+      "Content-Range": "bytes " + start + "-" + end + "/" + blob.size,
+      "Content-Type": fullResponse.headers.get("content-type") || "audio/mpeg"
+    }
+  });
+}
+
+self.addEventListener("fetch", event => {
+  const request = event.request;
+  if (request.method !== "GET") return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.href.split("?")[0] === AUDIO_URL) {
+    event.respondWith(audioResponse(request));
+    return;
+  }
+  const isCode = request.mode === "navigate" ||
+    ["script", "style", "manifest"].includes(request.destination) ||
+    /\.(mjs|js|css|webmanifest)$/.test(url.pathname);
+  event.respondWith(isCode ? networkFirst(request) : cacheFirst(request));
 });
 
-self.addEventListener("notificationclick", e => {
-  e.notification.close();
-  e.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then(l =>
-      l.length ? l[0].focus() : clients.openWindow("./")
-    )
+self.addEventListener("message", event => {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      .then(windows => {
+        const existing = windows.find(client => "focus" in client);
+        return existing ? existing.focus() : self.clients.openWindow("./");
+      })
   );
 });
